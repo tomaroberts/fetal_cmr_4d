@@ -1,16 +1,6 @@
-# Readme first:
+# WIP Repo:
 
-Hello! This is a WIP repo. Head to the following link for the release version of the fetal 4D recon code:<br> https://github.com/mriphysics/fetal_cmr_4d
-
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-
+Hello! This is a work-in-progress repo. Head to the following link for a working version of the fetal 4D recon code:<br> https://github.com/mriphysics/fetal_cmr_4d
 
 # fetal_cmr_4d
 
@@ -30,6 +20,8 @@ Joshua FP van Amerom, David FA Lloyd, Maria Deprez, Anthony N Price, Shaihan J M
 05 Dec 2018. arXiv: [1812.02249](https://arxiv.org/abs/1812.02249) (_preprint_)  
 
 ## Directories
+
+This repo builds upon the fetal 4D reconstruction work by Joshua van Amerom. The original 4D magnitude reconstruction repo can be found here:  https://github.com/jfpva/fetal_cmr_4d
 
 __4dflow__ - preprocessing and postprocessing scripts for flow reconstruction  
 
