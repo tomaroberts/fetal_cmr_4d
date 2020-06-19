@@ -75,7 +75,7 @@ add_param_fn( p, 'bloodpoolMask', default.bloodpoolMask, ...
         @(x) validateattributes( x, {'char'}, ...
         {}, mfilename ) );
 add_param_fn( p, 'velMasks', default.velMasks, ...
-        @(x) validateattributes( x, {'cell'}, ...
+        @(x) validateattributes( x, {'char'}, ... % TODO: {'cell'} for cell array of masks
         {}, mfilename ) );
 
 parse( p, reconDir, varargin{:} );
@@ -88,6 +88,20 @@ bloodpoolMask      = p.Results.bloodpoolMask;
 velMasks           = p.Results.velMasks;
 
 
+%% Convert velMasks char to cell
+% Prevents error if only one velocity mask provided
+% TODO: perform check in section above
+if ischar(velMasks)
+    velMasks = {velMasks};
+end
+
+
+%% Directories
+% TODO: add as parser inputs
+cineVolDir = fullfile( reconDir, 'cine_vol' );
+maskDir    = fullfile( reconDir, 'mask' );
+
+
 %% Velocity volume polynomial correction
 % NB: this automatically makes blood pool mask used further on
 % TODO: make automatic masking separate from drift correction
@@ -97,10 +111,10 @@ end
 
 
 %% Load cine volume
-cd(reconDir);
-cd('cine_vol');
+cd(cineVolDir);
 
-if ~isfile('cine_vol-RESLICE.nii.gz')
+% if ~isfile('cine_vol-RESLICE.nii.gz') %TODO: version check
+if ~exist( fullfile( cineVolDir, 'cine_vol-RESLICE.nii.gz' ) , 'file')
     reslice_nii('cine_vol.nii.gz', 'cine_vol-RESLICE.nii.gz');
 end
 cine_nii = load_nii('cine_vol-RESLICE.nii.gz');
@@ -121,9 +135,9 @@ else
 end
 
 % reslice if not already performed
-if ~isfile( [velStr '-RESLICE-0.nii.gz'] ) || ...
-   ~isfile( [velStr '-RESLICE-1.nii.gz'] ) || ...
-   ~isfile( [velStr '-RESLICE-2.nii.gz'] ) 
+if ~exist( fullfile( velDir, [velStr '-RESLICE-0.nii.gz'] ) , 'file') || ...
+   ~exist( fullfile( velDir, [velStr '-RESLICE-1.nii.gz'] ) , 'file') || ...
+   ~exist( fullfile( velDir, [velStr '-RESLICE-2.nii.gz'] ) , 'file') 
     reslice_nii([velStr '-0.nii.gz'], [velStr '-RESLICE-0.nii.gz']);
     reslice_nii([velStr '-1.nii.gz'], [velStr '-RESLICE-1.nii.gz']);
     reslice_nii([velStr '-2.nii.gz'], [velStr '-RESLICE-2.nii.gz']);
@@ -145,14 +159,13 @@ Vz = 1e2 .* Vz;
 
 
 %% Load masks
-cd(reconDir);
-cd mask
+cd(maskDir);
 
 %% Load magnitude cine blood pool mask
 % NB: automatically created in fcmr_pc_velocity_correction.m
 
 % reslice if necessary
-if ~isfile([bloodpoolMask '-RESLICE.nii.gz'])
+if ~exist( fullfile( maskDir, [bloodpoolMask '-RESLICE.nii.gz'] ) , 'file')
     reslice_nii([bloodpoolMask '.nii.gz'], [bloodpoolMask '-RESLICE.nii.gz']);
 end
 
@@ -169,7 +182,7 @@ for mm = 1:numel(velMasks)
     maskFileName = velMasks{mm};
     
     % open mask / reslice if necessary
-    if ~isfile([maskFileName '-RESLICE.nii.gz'])
+    if ~exist( fullfile( maskDir, [maskFileName '-RESLICE.nii.gz'] ) , 'file')
         reslice_nii([maskFileName '.nii.gz'], [maskFileName '-RESLICE.nii.gz']);
     end
 
@@ -177,8 +190,7 @@ for mm = 1:numel(velMasks)
     mask.img = double(mask.img);
     
     % fix mask_aorta/mask_IVC_SVC for fcmr194 (to do with extra voxels when re-slicing):
-    fcmrNum = 194;
-    if any(fcmrNum)
+    if exist(fcmrNum)
         if fcmrNum == 194 && strcmp(maskFileName,'mask_aorta') == 1 || fcmrNum == 194 && strcmp(maskFileName,'mask_IVC_SVC') == 1
             for tt = 1:nFrame; mask_re.img(:,:,:,tt) = imresize3(mask.img(:,:,:,tt),size(cine_nii.img(:,:,:,tt))); end
             mask.img = mask_re.img; clear mask_re;
@@ -199,32 +211,68 @@ mask.img = single(logical(maskCombined.img));
 for ii = 1:nFrame; mask.img(:,:,:,ii) = mask.img(:,:,:,1); end
 
 
-%% Resize
+%% Resize volumes to same size
 % FIXME: for some reason mask is 1 voxel larger than original volume...? 
-for tt = 1:nFrame
-    Vx_re(:,:,:,tt) = imresize3(Vx(:,:,:,tt),size(cine_nii.img(:,:,:,tt)));
-    Vy_re(:,:,:,tt) = imresize3(Vy(:,:,:,tt),size(cine_nii.img(:,:,:,tt)));
-    Vz_re(:,:,:,tt) = imresize3(Vz(:,:,:,tt),size(cine_nii.img(:,:,:,tt)));
-    mask_re.img(:,:,:,tt) = imresize3(mask.img(:,:,:,tt),size(cine_nii.img(:,:,:,tt)));
-    mask_bp_re.img(:,:,:,tt) = imresize3(mask_bp.img(:,:,:,tt),size(cine_nii.img(:,:,:,tt)));
-end
 
-Vx = Vx_re; clear Vx_re;
-Vy = Vy_re; clear Vy_re;
-Vz = Vz_re; clear Vz_re;
-mask.img = mask_re.img; clear mask_re;
-mask_bp.img = mask_bp_re.img; clear mask_bp_re;
+if size(cine_nii.img,1) ~= size(Vx,1) || ...
+   size(cine_nii.img,1) ~= size(Vy,1) || ...
+   size(cine_nii.img,1) ~= size(Vz,1) || ...
+   size(cine_nii.img,1) ~= size(mask.img,1) || ...
+   size(cine_nii.img,1) ~= size(mask_bp.img,1) || ...
+   size(cine_nii.img,2) ~= size(Vx,2) || ...
+   size(cine_nii.img,2) ~= size(Vy,2) || ...
+   size(cine_nii.img,2) ~= size(Vz,2) || ...
+   size(cine_nii.img,2) ~= size(mask.img,2) || ...
+   size(cine_nii.img,2) ~= size(mask_bp.img,2) 
+
+    if exist('imresize3','file') ~= 2
+        
+        warning('imresize3 not in this version of MATLAB - using custom function: imresize3_oldMatlab.');
+        
+        for tt = 1:nFrame
+            Vx_re_old(:,:,:,tt) = imresize3_oldMatlab(Vx(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+            Vy_re_old(:,:,:,tt) = imresize3_oldMatlab(Vy(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+            Vz_re_old(:,:,:,tt) = imresize3_oldMatlab(Vz(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+            mask_re_old.img(:,:,:,tt) = imresize3_oldMatlab(mask.img(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+            mask_bp_re_old.img(:,:,:,tt) = imresize3_oldMatlab(mask_bp.img(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+        end
+        
+        Vx = Vx_re_old; clear Vx_re_old;
+        Vy = Vy_re_old; clear Vy_re_old;
+        Vz = Vz_re_old; clear Vz_re_old;
+        mask.img = mask_re_old.img; clear mask_re_old;
+        mask_bp.img = mask_bp_re_old.img; clear mask_bp_re_old;
+        
+    else
+    
+        for tt = 1:nFrame
+            Vx_re(:,:,:,tt) = imresize3(Vx(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+            Vy_re(:,:,:,tt) = imresize3(Vy(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+            Vz_re(:,:,:,tt) = imresize3(Vz(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+            mask_re.img(:,:,:,tt) = imresize3(mask.img(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+            mask_bp_re.img(:,:,:,tt) = imresize3(mask_bp.img(:,:,:,tt),size(cine_nii.img(:,:,:,tt)),'nearest');
+        end
+    
+        Vx = Vx_re; clear Vx_re;
+        Vy = Vy_re; clear Vy_re;
+        Vz = Vz_re; clear Vz_re;
+        mask.img = mask_re.img; clear mask_re;
+        mask_bp.img = mask_bp_re.img; clear mask_bp_re;
+
+    end
+    
+end
 
 
 %% Apply blood pool mask to cine_nii / custom masks to velocity volumes
 
 % magnitude come
-cine_masked_nii.img = double(cine_nii.img) .* mask_bp.img;
+cine_masked_nii.img = double(cine_nii.img) .* logical(mask_bp.img);
 
 % velocity cine
-Vx_masked = Vx .* mask.img;
-Vy_masked = Vy .* mask.img;
-Vz_masked = Vz .* mask.img;
+Vx_masked = Vx .* logical(mask.img);
+Vy_masked = Vy .* logical(mask.img);
+Vz_masked = Vz .* logical(mask.img);
 
 Vmag_masked = sqrt(Vx_masked.^2 + Vy_masked.^2 + Vz_masked.^2);
 
@@ -236,7 +284,7 @@ Vmag_masked = sqrt(Vx_masked.^2 + Vy_masked.^2 + Vz_masked.^2);
 %% Eliminate spurious values from Vmag
 % improves Paraview visualisation
 % hist(nonzeros(Vmag_masked(:)))
-errIdx = find(Vmag_masked(:) > 100);
+errIdx = find(Vmag_masked(:) > 200);
 Vx_masked(errIdx) = 0; Vy_masked(errIdx) = 0; Vz_masked(errIdx) = 0; Vmag_masked(errIdx) = 0;
 
 
@@ -306,16 +354,12 @@ cd([velDir '_4d']);
 if strcmp(fileExt,'')
     mkdir(['mrtrix' foldnameAppend]);
     cd(['mrtrix' foldnameAppend])
-    
-    % get .nii to use as basis
-    Vx3D_nii = load_untouch_nii([reconDir '\' velDir '\velocity-final-RESLICE-0.nii.gz']);
 else
 	mkdir(['mrtrix_' fileExt foldnameAppend]);
     cd(['mrtrix_' fileExt foldnameAppend]);
-    
-    % get .nii to use as basis
-    Vx3D_nii = load_untouch_nii([reconDir '\' velDir '\velocity-final-' fileExt '-RESLICE-0.nii.gz']);
 end
+
+Vx3D_nii = load_untouch_nii( fullfile( reconDir, velDir, ['velocity-final-' fileExt '-RESLICE-0.nii.gz'] ) );
 
 
 disp('Writing .nii.gz files ... ');
