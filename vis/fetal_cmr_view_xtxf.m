@@ -32,7 +32,7 @@ if nargin == 3
     colormap('parula'); colorbar;
 %     axis('image');
     set(gca,'YLimMode','auto'); 
-    title( ['x-f - Slice No: ' num2str(sliceNum)] );
+    title( ['x-f - Line No: ' num2str(xfLine)] );
     
 elseif nargin > 3    
 
@@ -41,14 +41,14 @@ elseif nargin > 3
     colormap('parula'); colorbar;
 %     axis('image');
     set(gca,'YLimMode','auto'); 
-    title( ['x-f - Slice No: ' num2str(sliceNum)] );
+    title( ['x-f - Slice No: ' num2str(xfLine)] );
 
 end
 
 
 
 
-
+end %fn end
 
 
 
