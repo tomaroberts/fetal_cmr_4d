@@ -168,7 +168,7 @@ disp('fcmr_4dflow_get_first_moments complete ...');
 % use reslice_nii.m
 
 cd(reconDir);
-bloodpoolMask = 'mask_blood_pool';
+bloodpoolMask = 'mask_blood_pool_cleaned';
 velMasks      = bloodpoolMask;
 fcmr_4dflow_postprocessing( reconDir, 'useVelDriftCorr', true, 'fileExt', 'polyCorr', 'bloodpoolMask', bloodpoolMask, 'velMasks', velMasks );
 disp('fcmr_4dflow_postprocessing complete ...');

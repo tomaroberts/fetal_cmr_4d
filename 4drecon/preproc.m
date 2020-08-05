@@ -1,9 +1,22 @@
-function S = preproc( reconDir )
+function S = preproc( reconDir, hrRange, acqMethod )
 %PREPROC  preprocess data for 4D reconstruction.
 %
 %   S = PREPROC( reconDir ) reads files from reconDir and returns data structure S.
 
 %   JFPvA (joshua.vanamerom@kcl.ac.uk)
+%   TAR   (t.roberts@kcl.ac.uk)
+
+
+%% arg check
+% TODO: make string-value pairs
+if nargin < 2
+    hrRange   = [105,180];
+    acqMethod = 'm2d';
+end
+
+if nargin < 3
+    acqMethod = 'm2d';    
+end
 
 
 %% Init
@@ -11,58 +24,140 @@ function S = preproc( reconDir )
 dataDir     = fullfile( reconDir, 'data' );
 maskDir     = fullfile( reconDir, 'mask' );
 ktreconDir  = fullfile( reconDir, 'ktrecon' );
-hrRange     = [105,180];
-nFrameCine  = 25;
-delta       = 150;
 
 
 %% Identify Data and Get Parameters
 
-% Identify Dynamic MR Image Series
-rltFileList       = dir( fullfile( dataDir, '*_rlt_ab.nii.gz' ) );
-
-% Get Number of Stacks
-nStack = numel(rltFileList);
-
-% Initialise Stack Struct
-S = struct([]);
-
-% Read Data Into Stack Struct
-for iStk = 1:nStack
-
-    % Identify Files
-    S(iStk).desc          = strrep( rltFileList(iStk).name, '_rlt_ab.nii.gz', '' );
-    S(iStk).rltAbFile     = fullfile( rltFileList(iStk).folder,  rltFileList(iStk).name  );
-    S(iStk).rltReFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 're' ) );
-    S(iStk).rltImFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 'im' ) );
-    S(iStk).rltMatFile    = fullfile( ktreconDir, sprintf( '%s_rlt_recon.mat', S(iStk).desc ) );
-    S(iStk).rltParamFile  = fullfile( ktreconDir, sprintf( '%s_rlt_parameters.mat', S(iStk).desc ) );
-    S(iStk).dcAbFile      = fullfile( dataDir, sprintf( '%s_dc_ab.nii.gz', S(iStk).desc ) );
-    S(iStk).slwAbFile     = fullfile( ktreconDir, sprintf( '%s_slw_ab.nii.gz', S(iStk).desc ) );
-    S(iStk).trnAbFile     = fullfile( ktreconDir, sprintf( '%s_trn_ab.nii.gz', S(iStk).desc ) );
-    S(iStk).maskHeartFile = fullfile( maskDir, sprintf( '%s_mask_heart.nii.gz', S(iStk).desc ) );
-       
-    % Load Parameters
-    M = matfile( S(iStk).rltParamFile );
-    P = M.PARAM;
-
-    % Extract Parameters
-    S(iStk).nLoc             = P.Timing.numLoc;
-    S(iStk).sliceThickness   = P.Scan.RecVoxelSize(3);
+switch acqMethod
     
-    % Load NIfTI
-    R = load_untouch_nii( S(iStk).rltAbFile );
-    S(iStk).niiHdr = R.hdr;
+    % Standard k-t Acquisition
+    case 'm2d'
 
-    % Separate slices
-    for iLoc = 1:S(iStk).nLoc
+        % Identify Dynamic MR Image Series
+        rltFileList       = dir( fullfile( dataDir, '*_rlt_ab.nii.gz' ) );
 
-        % Dynamic Image Series
-        S(iStk).frameDuration   = P.Timing.frameDuration;
-        S(iStk).tFrame{iLoc}    = P.Timing.sliceTime(iLoc) + S(iStk).frameDuration * (0:(P.Encoding.NrDyn(1)-1));
+        % Get Number of Stacks
+        nStack = numel(rltFileList);
+
+        % Initialise Stack Struct
+        S = struct([]);
+
+        % Read Data Into Stack Struct
+        for iStk = 1:nStack
+
+            % Identify Files
+            S(iStk).desc          = strrep( rltFileList(iStk).name, '_rlt_ab.nii.gz', '' );
+            S(iStk).rltAbFile     = fullfile( rltFileList(iStk).folder,  rltFileList(iStk).name  );
+            S(iStk).rltReFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 're' ) );
+            S(iStk).rltImFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 'im' ) );
+            S(iStk).rltMatFile    = fullfile( ktreconDir, sprintf( '%s_rlt_recon.mat', S(iStk).desc ) );
+            S(iStk).rltParamFile  = fullfile( ktreconDir, sprintf( '%s_rlt_parameters.mat', S(iStk).desc ) );
+            S(iStk).dcAbFile      = fullfile( dataDir, sprintf( '%s_dc_ab.nii.gz', S(iStk).desc ) );
+            S(iStk).slwAbFile     = fullfile( ktreconDir, sprintf( '%s_slw_ab.nii.gz', S(iStk).desc ) );
+            S(iStk).trnAbFile     = fullfile( ktreconDir, sprintf( '%s_trn_ab.nii.gz', S(iStk).desc ) );
+            S(iStk).maskHeartFile = fullfile( maskDir, sprintf( '%s_mask_heart.nii.gz', S(iStk).desc ) );
+
+            % Load Parameters
+            M = matfile( S(iStk).rltParamFile );
+            P = M.PARAM;
+
+            % Extract Parameters
+            S(iStk).nLoc             = P.Timing.numLoc;
+            S(iStk).sliceThickness   = P.Scan.RecVoxelSize(3);
+
+            % Load NIfTI
+            R = load_untouch_nii( S(iStk).rltAbFile );
+            S(iStk).niiHdr = R.hdr;
+            
+            % Update NrDyn
+            % TODO: decide how best to implement this
+            % - do I want to update PARAM in mrecon_kt.m ?
+            if P.Encoding.NrDyn(1) ~= size( R.img,4 )
+                warning(['Series ' S(iStk).desc ' - Updating parameter: P.Encoding.NrDyn ... ']);
+                P.Encoding.NrDyn = [size( R.img,4 ) size( R.img,4 )];
+            end
+
+            % Separate slices
+            for iLoc = 1:S(iStk).nLoc
+
+                % Dynamic Image Series
+                S(iStk).frameDuration   = P.Timing.frameDuration;
+                S(iStk).tFrame{iLoc}    = P.Timing.sliceTime(iLoc) + S(iStk).frameDuration * (0:(P.Encoding.NrDyn(1)-1));
+                
+            end
+            
+            % Plot tFrame
+            numDyn = P.Encoding.NrDyn(1);
+            
+            figure; hold on;
+            plot( 1:numDyn, S(iStk).tFrame{1,1} );
+            for iLoc = 2:S(iStk).nLoc
+                xRange = ( (iLoc-1) * numDyn ) + 1:...
+                    ( (iLoc) * numDyn );
+                plot( xRange, S(iStk).tFrame{1,iLoc});
+            end
+            title(['Stack ID: ' S(iStk).desc]);
+            xlabel('Frame Index');
+            ylabel('Time');
+            
+            hFig = gcf; hFig.Name = sprintf( '%s_kernels_v_time', S(iStk).desc ); % TODO: save in /cardsync
+            save_figs( dataDir, gcf, dataDir );
+
+        end
         
-    end
-    
+	% Sweep k-t Acquisition
+    case { 'sweep' , 'swp' }
+        
+        % Identify Sweep MR Image Series
+        rltFileList       = dir( fullfile( dataDir, '*_rlt_ab.nii.gz' ) );
+
+        % Get Number of Stacks
+        nStack = numel(rltFileList);
+
+        % Initialise Stack Struct
+        S = struct([]);
+
+        % Read Data Into Stack Struct
+        for iStk = 1:nStack
+
+            % Identify Files
+            S(iStk).desc          = strrep( rltFileList(iStk).name, '_rlt_ab.nii.gz', '' );
+            S(iStk).rltAbFile     = fullfile( rltFileList(iStk).folder,  rltFileList(iStk).name  );
+            S(iStk).rltReFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 're' ) );
+            S(iStk).rltImFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 'im' ) );
+            S(iStk).rltMatFile    = fullfile( ktreconDir, sprintf( '%s_rlt_recon.mat', S(iStk).desc ) );
+            S(iStk).rltParamFile  = fullfile( ktreconDir, sprintf( '%s_rlt_parameters.mat', S(iStk).desc ) );
+            
+            % TODO: what to do with below?
+            S(iStk).dcAbFile      = fullfile( dataDir, sprintf( '%s_dc_ab.nii.gz', S(iStk).desc ) );
+            S(iStk).slwAbFile     = fullfile( ktreconDir, sprintf( '%s_slw_ab.nii.gz', S(iStk).desc ) );
+            S(iStk).trnAbFile     = fullfile( ktreconDir, sprintf( '%s_trn_ab.nii.gz', S(iStk).desc ) );
+            S(iStk).maskHeartFile = fullfile( maskDir, sprintf( '%s_mask_heart.nii.gz', S(iStk).desc ) );
+            %%%
+            
+            % Load Parameters
+            M = matfile( S(iStk).rltParamFile );
+            P = M.PARAM;
+
+            % Extract Parameters
+            S(iStk).nLoc             = P.Timing.numLoc; % TODO: what to do with?
+            S(iStk).sliceThickness   = P.Scan.RecVoxelSize(3);
+
+            % Load NIfTI
+            R = load_untouch_nii( S(iStk).rltAbFile );
+            S(iStk).niiHdr = R.hdr;
+
+            % Separate slices
+            for iLoc = 1:S(iStk).nLoc
+
+                % Dynamic Image Series
+                S(iStk).frameDuration   = P.Timing.frameDuration;
+                S(iStk).tFrame{iLoc}    = P.Timing.sliceTime(iLoc) + S(iStk).frameDuration * (0:(P.Encoding.NrDyn(1)-1));
+
+            end
+
+        end
+
 end
 
 
