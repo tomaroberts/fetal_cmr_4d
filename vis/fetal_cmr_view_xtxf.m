@@ -45,7 +45,7 @@ elseif nargin > 3
 
 end
 
-
+xfRcn = xfRcn(:,:,:,sliceNum);
 
 
 end %fn end

@@ -1,12 +1,13 @@
 #### path/variable admin
-fcmrNum = 202
-foldExt = ''
+fcmrNum = 214
+foldExt = '_hrh_fullRecon'
 pvStateExt = ''
-velDir = '\\vel_vol_4d_4stk'
+velDir = '\\vel_vol_4d'
 # velDir = '\\vel_vol_trans_4d'
 
 # pvFold = '\\paraview' + '\\'
-pvFold = '\\paraview_polyCorr' + '\\'
+# pvFold = '\\paraview_polyCorr' + '\\'
+pvFold = '\\paraview_polyCorr_blood_pool_cleaned' + '\\'
 # pvFold = '\\paraview_polyCorr_aorta_v2_LV_RV_LOT_ROT_LA_RA_IVC_SVC_PA_DA_v2' + '\\'
 
 # fcmrDir = 'I:\\fcmr_4d_clinical_recons\\c_fcmr'
