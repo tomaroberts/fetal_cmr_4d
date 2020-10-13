@@ -109,7 +109,7 @@ switch acqMethod
     case { 'sweep' , 'swp' }
         
         % Identify Sweep MR Image Series
-        rltFileList       = dir( fullfile( dataDir, '*_rlt_ab.nii.gz' ) );
+        rltFileList       = dir( fullfile( ktreconDir, '*_rlt_ab_swp3d.nii.gz' ) ); % originally dataDir, ...
 
         % Get Number of Stacks
         nStack = numel(rltFileList);
@@ -121,7 +121,7 @@ switch acqMethod
         for iStk = 1:nStack
 
             % Identify Files
-            S(iStk).desc          = strrep( rltFileList(iStk).name, '_rlt_ab.nii.gz', '' );
+            S(iStk).desc          = strrep( rltFileList(iStk).name, '_rlt_ab_swp3d.nii.gz', '' );
             S(iStk).rltAbFile     = fullfile( rltFileList(iStk).folder,  rltFileList(iStk).name  );
             S(iStk).rltReFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 're' ) );
             S(iStk).rltImFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 'im' ) );
@@ -129,7 +129,7 @@ switch acqMethod
             S(iStk).rltParamFile  = fullfile( ktreconDir, sprintf( '%s_rlt_parameters.mat', S(iStk).desc ) );
             
             % TODO: what to do with below?
-            S(iStk).dcAbFile      = fullfile( dataDir, sprintf( '%s_dc_ab.nii.gz', S(iStk).desc ) );
+            S(iStk).dcAbFile      = fullfile( ktreconDir, sprintf( '%s_dc_ab.nii.gz', S(iStk).desc ) ); % originally dataDir, ...
             S(iStk).slwAbFile     = fullfile( ktreconDir, sprintf( '%s_slw_ab.nii.gz', S(iStk).desc ) );
             S(iStk).trnAbFile     = fullfile( ktreconDir, sprintf( '%s_trn_ab.nii.gz', S(iStk).desc ) );
             S(iStk).maskHeartFile = fullfile( maskDir, sprintf( '%s_mask_heart.nii.gz', S(iStk).desc ) );
@@ -139,22 +139,20 @@ switch acqMethod
             M = matfile( S(iStk).rltParamFile );
             P = M.PARAM;
 
-            % Extract Parameters
-            S(iStk).nLoc             = P.Timing.numLoc; % TODO: what to do with?
-            S(iStk).sliceThickness   = P.Scan.RecVoxelSize(3);
-
             % Load NIfTI
             R = load_untouch_nii( S(iStk).rltAbFile );
             S(iStk).niiHdr = R.hdr;
+            
+            % Extract Parameters
+            S(iStk).nLoc             = size( R.img,3 );
+            S(iStk).sliceThickness   = P.Scan.RecVoxelSize(3);
 
-            % Separate slices
-            for iLoc = 1:S(iStk).nLoc
-
-                % Dynamic Image Series
-                S(iStk).frameDuration   = P.Timing.frameDuration;
-                S(iStk).tFrame{iLoc}    = P.Timing.sliceTime(iLoc) + S(iStk).frameDuration * (0:(P.Encoding.NrDyn(1)-1));
-
-            end
+            % Sweep Image Series - Linear Frame Times
+            S(iStk).frameDuration   = P.Timing.frameDuration;
+            S(iStk).tFrame          = P.Timing.tSeriesOffset + S(iStk).frameDuration * (0:(S(iStk).nLoc-1));
+            
+%             % View from t = 0
+%             figure; plot( S(iStk).tFrame-P.Timing.tSeriesOffset );
 
         end
 
