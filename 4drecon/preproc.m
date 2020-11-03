@@ -24,6 +24,7 @@ end
 dataDir     = fullfile( reconDir, 'data' );
 maskDir     = fullfile( reconDir, 'mask' );
 ktreconDir  = fullfile( reconDir, 'ktrecon' );
+isVerbose   = false;
 
 
 %% Identify Data and Get Parameters
@@ -85,23 +86,6 @@ switch acqMethod
                 S(iStk).tFrame{iLoc}    = P.Timing.sliceTime(iLoc) + S(iStk).frameDuration * (0:(P.Encoding.NrDyn(1)-1));
                 
             end
-            
-            % Plot tFrame
-            numDyn = P.Encoding.NrDyn(1);
-            
-            figure; hold on;
-            plot( 1:numDyn, S(iStk).tFrame{1,1} );
-            for iLoc = 2:S(iStk).nLoc
-                xRange = ( (iLoc-1) * numDyn ) + 1:...
-                    ( (iLoc) * numDyn );
-                plot( xRange, S(iStk).tFrame{1,iLoc});
-            end
-            title(['Stack ID: ' S(iStk).desc]);
-            xlabel('Frame Index');
-            ylabel('Time');
-            
-            hFig = gcf; hFig.Name = sprintf( '%s_kernels_v_time', S(iStk).desc ); % TODO: save in /cardsync
-            save_figs( dataDir, gcf, dataDir );
 
         end
         
@@ -109,7 +93,7 @@ switch acqMethod
     case { 'sweep' , 'swp' }
         
         % Identify Sweep MR Image Series
-        rltFileList       = dir( fullfile( ktreconDir, '*_rlt_ab_swp3d.nii.gz' ) ); % originally dataDir, ...
+        rltFileList       = dir( fullfile( ktreconDir, '*_rlt_ab.nii.gz' ) ); % originally dataDir, ...
 
         % Get Number of Stacks
         nStack = numel(rltFileList);
@@ -121,7 +105,7 @@ switch acqMethod
         for iStk = 1:nStack
 
             % Identify Files
-            S(iStk).desc          = strrep( rltFileList(iStk).name, '_rlt_ab_swp3d.nii.gz', '' );
+            S(iStk).desc          = strrep( rltFileList(iStk).name, '_rlt_ab.nii.gz', '' );
             S(iStk).rltAbFile     = fullfile( rltFileList(iStk).folder,  rltFileList(iStk).name  );
             S(iStk).rltReFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 're' ) );
             S(iStk).rltImFile     = fullfile( ktreconDir, strrep( rltFileList(iStk).name, 'ab', 'im' ) );
@@ -144,18 +128,71 @@ switch acqMethod
             S(iStk).niiHdr = R.hdr;
             
             % Extract Parameters
-            S(iStk).nLoc             = size( R.img,3 );
+            S(iStk).nLoc             = size( R.img,3 ); % For Sweep, nLoc = numSwpWindows
             S(iStk).sliceThickness   = P.Scan.RecVoxelSize(3);
 
-            % Sweep Image Series - Linear Frame Times
-            S(iStk).frameDuration   = P.Timing.frameDuration;
-            S(iStk).tFrame          = P.Timing.tSeriesOffset + S(iStk).frameDuration * (0:(S(iStk).nLoc-1));
+            % Calculate Unique Sweep Frame Times
+            for iSwpLoca = 1:max(P.Sweep.swpWindows(:))
+
+                % Sweep Image Series - Linear Frame Times
+                S(iStk).frameDuration           = P.Timing.frameDuration;
+                S(iStk).tFrameSwpLoca(iSwpLoca) = P.Timing.tSeriesOffset + S(iStk).frameDuration * (iSwpLoca-1); % linear increment
+                
+            end
+            
+            % Calculate Sweep Window Frame Times
+            for iLoc = 1:S(iStk).nLoc
+                
+                idxSwpWin = P.Sweep.swpWindows(:,iLoc);
+                S(iStk).tFrame{iLoc} = S(iStk).tFrameSwpLoca(idxSwpWin);
+            
+            end
+            
             
 %             % View from t = 0
-%             figure; plot( S(iStk).tFrame-P.Timing.tSeriesOffset );
+%             figure; plot( cell2mat(S(iStk).tFrame) - P.Timing.tSeriesOffset );
 
         end
 
+end
+
+
+%% Plot Frame Timings
+
+% Plot tFrame
+% TODO: create equivalent for 'swp'
+if isVerbose
+    
+    if strcmp(acqMethod,'m2d')
+        numDyn = P.Encoding.NrDyn(1);
+
+        figure; hold on;
+        plot( 1:numDyn, S(iStk).tFrame{1,1} );
+        for iLoc = 2:S(iStk).nLoc
+            xRange = ( (iLoc-1) * numDyn ) + 1:...
+                ( (iLoc) * numDyn );
+            plot( xRange, S(iStk).tFrame{1,iLoc});
+        end
+        title(['Stack ID: ' S(iStk).desc]);
+        xlabel('Frame Index');
+        ylabel('Time');
+
+        hFig = gcf; hFig.Name = sprintf( '%s_kernels_v_time', S(iStk).desc ); % TODO: save in /cardsync
+        save_figs( dataDir, gcf, dataDir );
+    
+    elseif strcmp(acqMethod,'sweep') || strcmp(acqMethod,'swp')
+        
+        figure; hold on;
+        plot( S(iStk).tFrameSwpLoca - P.Timing.tSeriesOffset );
+        plot( cell2mat(S(iStk).tFrame) - P.Timing.tSeriesOffset ); % TODO: add plot() showing the which tFrames used
+        legend('Linear Sweep','Sweep Windows','Location','SouthEast');
+        title(['Stack ID: ' S(iStk).desc]);
+        xlabel('Frame Index');
+        ylabel('Time (seconds / Offset to zero)');
+        
+    end
+    
+    
 end
 
 
