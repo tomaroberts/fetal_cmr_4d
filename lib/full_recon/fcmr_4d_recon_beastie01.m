@@ -69,7 +69,10 @@ addpath( genpath( '/home/cmo19/MATLAB/TomR_Matlab_Code') );
 addpath( genpath( '/home/cmo19/MATLAB/datafun') );
 
 % Path to MITK Workbench
-mitkWkbhPath    = '/home/cmo19/MITK-2016.11.0-linux64/MitkWorkbench.sh';
+mitkWkbhPath = '/home/cmo19/MITK-2016.11.0-linux64/MitkWorkbench.sh';
+
+% Path to Python3
+pyPath = '/home/cmo19/miniconda/bin/python';
 
 % Paths to reconstruction bash scripts
 sh.scriptPath   = '/home/cmo19/MATLAB/fetal_cmr_4d-master/4drecon';
@@ -388,7 +391,6 @@ if strcmp( reconChoice, 'recon_cine_vol' )  || ...
 
 	%% 1.10) Summarise in MATLAB
 	% (non-essential)
-
 	% TODO: fix - no longer works with move to MIRTK
 
 	% S = summarise_recon( [reconDir '/cine_vol'], [reconDir '/cardsync'], 'verbose', true );
@@ -458,6 +460,22 @@ if strcmp( reconChoice, 'recon_vel_vol' ) || ...
 		'velMasks', bloodpoolMask );
 	
     fprintf('Completed fcmr_4dflow_postprocessing ...\n');
+    
+    
+    %% 2.6) Create FCMR 4D dicoms
+    % Python script: .../lib/dicom/fcmr_4d_make_dicom.py
+    % Uses Miniconda install on beastie01 - TODO: make more generalisable
+    
+    cd(reconDir);
+    fprintf('Creating FCMR dicoms ...\n');   
+    
+    exportPathCmd = 'export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/home/cmo19/miniconda/bin";'; %nb: Linux PATH not known by Matlab
+    pythonCmd     = ['/home/cmo19/miniconda/bin/python3 /home/cmo19/MATLAB/fetal_cmr_4d-master/lib/dicom/fcmr_4d_make_dicom.py -r ' reconDir '/ -f ' num2str(fcmrNo)];
+    cmdStr        = strcat(exportPathCmd, pythonCmd);
+	system(cmdStr);
+    
+    fprintf('Completed dicom creation ...\n');
+    
     
     fprintf('\n____________ Part 2) 4D flow volume (vel_vol) RECONSTRUCTION COMPLETE ____________\n\n');
 
