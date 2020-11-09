@@ -30,21 +30,21 @@ end
 
 numDyn = P(1).Encoding.NrDyn(1);
 
-figure; hold on;
-
-% Linear Sweep tFrames
-plot( S(iStk).tFrameSwpLoca, 'k-' );
-
-% Sweep Windows
-plot( 1:numDyn, S(iStk).tFrame{1,1} );
-for iLoc = 2:S(iStk).nLoc
-    xRange = ( (iLoc-1) * numDyn ) + 1:...
-        ( (iLoc) * numDyn );
-    plot( xRange, S(iStk).tFrame{1,iLoc});
-end
-title(['Stack ID: ' S(iStk).desc]);
-xlabel('Frame Index');
-ylabel('Time');
+% figure; hold on;
+% 
+% % Linear Sweep tFrames
+% plot( S(iStk).tFrameSwpLoca, 'k-' );
+% 
+% % Sweep Windows
+% plot( 1:numDyn, S(iStk).tFrame{1,1} );
+% for iLoc = 2:S(iStk).nLoc
+%     xRange = ( (iLoc-1) * numDyn ) + 1:...
+%         ( (iLoc) * numDyn );
+%     plot( xRange, S(iStk).tFrame{1,iLoc});
+% end
+% title(['Stack ID: ' S(iStk).desc]);
+% xlabel('Frame Index');
+% ylabel('Time');
 
 
 %% tRR - estimated RR interval of every reconstruction (each Sweep Window)
@@ -143,6 +143,12 @@ fprintf('   Sweep Heart Rate = %.0f\n',      60 ./ cell2mat( SWP(iStk).tRRSwpLoc
 
 %% Plot Parameters of Duplicate Frame
 
+% Method below:
+% - Frame offset = 
+
+
+iStk = 2;
+
 maxDupl = 3;
 
 x = nan(maxDupl,length(SWP(iStk).tRRSwpLoca));
@@ -218,9 +224,9 @@ deltaPhase = 0;
 phaseOffset = 0;
 
 for iRR = 2:34
-    deltaPhase(iRR) = cPF(2,iRR) - cPF(1,iRR);
-    phaseOffset(iRR) = cPF(end,iRR-1) + deltaPhase(iRR);
-    cPF(:,iRR) = cPF(:,iRR) + phaseOffset(iRR);
+    deltaPhase(iRR) = cPF(2,iRR) - cPF(1,iRR); % change in cardiac phase for current window
+    phaseOffset(iRR) = cPF(end,iRR-1) + deltaPhase(iRR); % phase of previous frame
+    cPF(:,iRR) = cPF(:,iRR) + phaseOffset(iRR); % offset phases of new window
 end
     
 thetamean = wrapTo2Pi( 2 * pi * cPF );
@@ -335,9 +341,10 @@ legend('Window 1','Window 2','Window 3','Window 4');
 
 %% Formalise
 
+% Below: Frame offset = mean of two previous windows
 
-
-for iStk = 1:nStack
+for iStk = 4
+% for iStk = 1:nStack
     
     SWw = P(iStk).Sweep.swpWinFullWidth;
     SWs = P(iStk).Sweep.swpWinStride;
