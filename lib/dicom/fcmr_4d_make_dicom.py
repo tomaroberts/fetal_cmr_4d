@@ -25,13 +25,15 @@ def parse_arguments():
     parser.add_argument('--studydate', type=int, metavar='studydate', default=2000101, help='StudyDate in dicom header (default = 2000101 = 01/01/2000)')
     parser.add_argument('--studytime', type=float, metavar='studytime', default=100000, help='StudyTime in dicom header (default = 100000 = 10am)')
     parser.add_argument('--seriestime', type=float, metavar='seriestime', default=100000, help='SeriesTime in dicom header (default = 100000 + 1000.11)')
-    
+    parser.add_argument('--recon_magnitude', type=float, metavar='recon_magnitude', default=1, help='Reconstruct 4D magnitude volume (1 = yes, 0 = no, default = 1)')
+    parser.add_argument('--recon_velocity', type=float, metavar='recon_velocity', default=1, help='Reconstruct 4D velocity volume (1 = yes, 0 = no, default = 1)')
+
     return parser.parse_args()
 
 
 def dir_path(path):
     if os.path.isdir(path):
-        return path
+        return os.path.join(path,'')
     else:
         raise argparse.ArgumentTypeError('readable_dir:{path} is not a valid path')
 
@@ -44,6 +46,9 @@ venc        = args.venc
 studyDate   = args.studydate
 studyTime   = args.studytime
 seriesTime  = args.seriestime
+recon_mag   = args.recon_magnitude
+recon_vel   = args.recon_velocity
+
 
 # offset seriesTime from studyTime if not provided
 if seriesTime == studyTime:
@@ -90,14 +95,15 @@ outputDirR = os.path.join( fcmrDir, dcmFolder, 'R' )
 if not os.path.exists(outputDirR):
     os.makedirs(outputDirR)
 
-outputDirV = []
-outputDirV.append(os.path.join( fcmrDir, dcmFolder, 'V0' ))
-outputDirV.append(os.path.join( fcmrDir, dcmFolder, 'V1' ))
-outputDirV.append(os.path.join( fcmrDir, dcmFolder, 'V2' ))
+if recon_vel == 1:
+    outputDirV = []
+    outputDirV.append(os.path.join( fcmrDir, dcmFolder, 'V0' ))
+    outputDirV.append(os.path.join( fcmrDir, dcmFolder, 'V1' ))
+    outputDirV.append(os.path.join( fcmrDir, dcmFolder, 'V2' ))
 
-for i in range(3):
-    if not os.path.exists(outputDirV[i]):
-        os.makedirs(outputDirV[i])
+    for i in range(3):
+        if not os.path.exists(outputDirV[i]):
+            os.makedirs(outputDirV[i])
 
 
 ### Define Private Tags to be Created
@@ -135,24 +141,26 @@ cineVolniiFileName=r'cine_vol-RESLICE.nii.gz'
 cineVol_nii = nib.load( os.path.join( fcmrDir, cineVolDir, cineVolniiFileName ) )
 cineVol_img = cineVol_nii.get_fdata()
 
-velVolDir=r'vel_vol'
-velVol0niiFileName=r'velocity-final-polyCorr-RESLICE-0.nii.gz'
-velVol1niiFileName=r'velocity-final-polyCorr-RESLICE-1.nii.gz'
-velVol2niiFileName=r'velocity-final-polyCorr-RESLICE-2.nii.gz'
-velVol0_nii = nib.load( os.path.join( fcmrDir, velVolDir, velVol0niiFileName ) )
-velVol1_nii = nib.load( os.path.join( fcmrDir, velVolDir, velVol1niiFileName ) ) 
-velVol2_nii = nib.load( os.path.join( fcmrDir, velVolDir, velVol2niiFileName ) )
-velVol0_img = velVol0_nii.get_fdata()
-velVol1_img = velVol1_nii.get_fdata()
-velVol2_img = velVol2_nii.get_fdata()
-
 print("Shape of cine_vol nifti:", cineVol_img.shape)
-print("Shape of vel_vol0 nifti:", velVol0_img.shape)
-print("Shape of vel_vol1 nifti:", velVol1_img.shape)
-print("Shape of vel_vol2 nifti:", velVol2_img.shape)
 
-if not cineVol_img.shape==velVol0_img.shape:
-    print("WARNING: 4D cine_vol and 4D vel_vol volumes are different shapes.")
+if recon_vel == 1:
+    velVolDir=r'vel_vol'
+    velVol0niiFileName=r'velocity-final-polyCorr-RESLICE-0.nii.gz'
+    velVol1niiFileName=r'velocity-final-polyCorr-RESLICE-1.nii.gz'
+    velVol2niiFileName=r'velocity-final-polyCorr-RESLICE-2.nii.gz'
+    velVol0_nii = nib.load( os.path.join( fcmrDir, velVolDir, velVol0niiFileName ) )
+    velVol1_nii = nib.load( os.path.join( fcmrDir, velVolDir, velVol1niiFileName ) ) 
+    velVol2_nii = nib.load( os.path.join( fcmrDir, velVolDir, velVol2niiFileName ) )
+    velVol0_img = velVol0_nii.get_fdata()
+    velVol1_img = velVol1_nii.get_fdata()
+    velVol2_img = velVol2_nii.get_fdata()
+
+    print("Shape of vel_vol0 nifti:", velVol0_img.shape)
+    print("Shape of vel_vol1 nifti:", velVol1_img.shape)
+    print("Shape of vel_vol2 nifti:", velVol2_img.shape)
+
+    if not cineVol_img.shape==velVol0_img.shape:
+        print("WARNING: 4D cine_vol and 4D vel_vol volumes are different shapes.")
 
 nX = cineVol_img.shape[0]
 nY = cineVol_img.shape[1]
@@ -167,13 +175,16 @@ dimF = cineVol_nii.header['pixdim'][4]
 print("pixdim [mm, mm, mm, seconds]:", [dimX, dimY, dimZ, dimF])
 
 c   = np.reshape(cineVol_img, [nX, nY, nZ*nF])
-v0  = np.reshape(velVol0_img, [nX, nY, nZ*nF])
-v1  = np.reshape(velVol1_img, [nX, nY, nZ*nF])
-v2  = np.reshape(velVol2_img, [nX, nY, nZ*nF])
+if recon_vel == 1:
+    v0  = np.reshape(velVol0_img, [nX, nY, nZ*nF])
+    v1  = np.reshape(velVol1_img, [nX, nY, nZ*nF])
+    v2  = np.reshape(velVol2_img, [nX, nY, nZ*nF])
 
 # set background pixels = 0 (-1 in SVRTK)
 iBkrd = c==-1
-c[iBkrd] = 0; v0[iBkrd] = 0; v1[iBkrd] = 0; v2[iBkrd] = 0
+c[iBkrd] = 0; 
+if recon_vel == 1:
+    v0[iBkrd] = 0; v1[iBkrd] = 0; v2[iBkrd] = 0
 
 # convert to same datatype as DICOM
 c = c.astype("uint16")
@@ -181,9 +192,10 @@ c = c.astype("uint16")
 cWindowWidth = round(np.amax(c)-np.amin(c), 2); cWindowCenter = cWindowWidth / 2
 
 print("Reshaped size of cine_vol,  c:", c.shape)
-print("Reshaped size of vel_vol0, v0:", v0.shape)
-print("Reshaped size of vel_vol1, v1:", v1.shape)
-print("Reshaped size of vel_vol2, v2:", v2.shape)
+if recon_vel == 1:
+    print("Reshaped size of vel_vol0, v0:", v0.shape)
+    print("Reshaped size of vel_vol1, v1:", v1.shape)
+    print("Reshaped size of vel_vol2, v2:", v2.shape)
 
 # Number of files to create
 numInstances = nZ*nF
@@ -193,36 +205,38 @@ numInstances = nZ*nF
 # vR = 0.4
 # fig, ax = plt.subplots(2, 2, sharex='col', sharey='row', figsize=(10,10))
 # ax[0,0].imshow(c[:,:,im2disp],  cmap=plt.cm.gray)
-# ax[0,1].imshow(v0[:,:,im2disp], cmap=plt.cm.jet, vmin=-vR, vmax=vR)
-# ax[1,0].imshow(v1[:,:,im2disp], cmap=plt.cm.jet, vmin=-vR, vmax=vR)
-# ax[1,1].imshow(v2[:,:,im2disp], cmap=plt.cm.jet, vmin=-vR, vmax=vR)
+# if recon_vel == 1:
+    # ax[0,1].imshow(v0[:,:,im2disp], cmap=plt.cm.jet, vmin=-vR, vmax=vR)
+    # ax[1,0].imshow(v1[:,:,im2disp], cmap=plt.cm.jet, vmin=-vR, vmax=vR)
+    # ax[1,1].imshow(v2[:,:,im2disp], cmap=plt.cm.jet, vmin=-vR, vmax=vR)
 
-# Rescale Velocity Volumes
-RescaleSlope = 1
-RescaleIntercept = venc
+if recon_vel == 1:
+    # Rescale Velocity Volumes
+    RescaleSlope = 1
+    RescaleIntercept = venc
 
-v0r = v0 * 1e2 * RescaleSlope + RescaleIntercept
-v1r = v1 * 1e2 * RescaleSlope + RescaleIntercept
-v2r = v2 * 1e2 * RescaleSlope + RescaleIntercept
+    v0r = v0 * 1e2 * RescaleSlope + RescaleIntercept
+    v1r = v1 * 1e2 * RescaleSlope + RescaleIntercept
+    v2r = v2 * 1e2 * RescaleSlope + RescaleIntercept
 
-# convert to same datatype as DICOM
-v0r = v0r.astype("uint16")
-v1r = v1r.astype("uint16") 
-v2r = v2r.astype("uint16") 
+    # convert to same datatype as DICOM
+    v0r = v0r.astype("uint16")
+    v1r = v1r.astype("uint16") 
+    v2r = v2r.astype("uint16") 
 
-# Shift background by venc, so V = 0 with Rescale
-v0r[iBkrd] = 0; v1r[iBkrd] = 0; v2r[iBkrd] = 0
+    # Shift background by venc, so V = 0 with Rescale
+    v0r[iBkrd] = 0; v1r[iBkrd] = 0; v2r[iBkrd] = 0
 
-v0rWindowWidth = round(np.amax(v0r)-np.amin(v0r), 2); v0rWindowCenter = v0rWindowWidth / 2
-v1rWindowWidth = round(np.amax(v1r)-np.amin(v1r), 2); v1rWindowCenter = v1rWindowWidth / 2
-v2rWindowWidth = round(np.amax(v2r)-np.amin(v2r), 2); v2rWindowCenter = v2rWindowWidth / 2
+    v0rWindowWidth = round(np.amax(v0r)-np.amin(v0r), 2); v0rWindowCenter = v0rWindowWidth / 2
+    v1rWindowWidth = round(np.amax(v1r)-np.amin(v1r), 2); v1rWindowCenter = v1rWindowWidth / 2
+    v2rWindowWidth = round(np.amax(v2r)-np.amin(v2r), 2); v2rWindowCenter = v2rWindowWidth / 2
 
-# # %matplotlib qt
-# fig, ax = plt.subplots(2, 2, sharex='col', sharey='row', figsize=(10,10))
-# ax[0,0].imshow(c[:,:,im2disp], cmap=plt.cm.gray)
-# ax[0,1].imshow(v0r[:,:,im2disp], cmap=plt.cm.gray) #TODO: add in windowing based on mean nonzero signal +/ range
-# ax[1,0].imshow(v1r[:,:,im2disp], cmap=plt.cm.gray)
-# ax[1,1].imshow(v2r[:,:,im2disp], cmap=plt.cm.gray)
+    # # %matplotlib qt
+    # fig, ax = plt.subplots(2, 2, sharex='col', sharey='row', figsize=(10,10))
+    # ax[0,0].imshow(c[:,:,im2disp], cmap=plt.cm.gray)
+    # ax[0,1].imshow(v0r[:,:,im2disp], cmap=plt.cm.gray) #TODO: add in windowing based on mean nonzero signal +/ range
+    # ax[1,0].imshow(v1r[:,:,im2disp], cmap=plt.cm.gray)
+    # ax[1,1].imshow(v2r[:,:,im2disp], cmap=plt.cm.gray)
 
 
 ### Create Parameter Arrays
@@ -551,12 +565,21 @@ RefImUID_R2 = pydicom.uid.generate_uid(None)
 RefImUID_R3 = pydicom.uid.generate_uid(None)
 
 # Magnitude & Velocity Volumes
-MagVelImUID_R1 = pydicom.uid.generate_uid(None)
-MagVelImUID_R2 = pydicom.uid.generate_uid(None)
-MagVelImUID_R3 = RefImUID_R3 # Needs to be identical
+if recon_vel == 1:
+    MagVelImUID_R1 = pydicom.uid.generate_uid(None)
+    MagVelImUID_R2 = pydicom.uid.generate_uid(None)
+    MagVelImUID_R3 = RefImUID_R3 # Needs to be identical
+elif recon_vel == 0:
+    MagImUID_R1 = pydicom.uid.generate_uid(None)
+    MagImUID_R2 = pydicom.uid.generate_uid(None)
+    MagImUID_R3 = pydicom.uid.generate_uid(None)
 
 
-### --- Create Reference Dicoms
+#-----------------------------------------------#
+#------------- DICOM FILE CREATION -------------#
+#-----------------------------------------------#
+
+### --- Create 'Reference' Dicoms
 # nb: just first frame of cine_vol
 file_meta, ds = dcm_initialise()
 ds.InstanceCreatorUID = randomCreatorUID
@@ -656,11 +679,17 @@ randomSeriesUID = pydicom.uid.generate_uid(None)
 ds.SeriesInstanceUID = randomSeriesUID ### REMINDER: each velocity series should have unique UID
 
 # Define Ref Image UIDs
-dcm_make_ref_image_sequence(ds, MagVelImUID_R1, MagVelImUID_R2, MagVelImUID_R3)
+if recon_vel == 1:
+    dcm_make_ref_image_sequence(ds, MagVelImUID_R1, MagVelImUID_R2, MagVelImUID_R3)
+elif recon_vel == 0:
+    dcm_make_ref_image_sequence(ds, MagImUID_R1, MagImUID_R2, MagImUID_R3)
 
 # Update Fixed Attributes
 ds.PatientName = patientName
-ds.ProtocolName = 'FCMR 4D FLOW M'
+if recon_vel == 1:
+    ds.ProtocolName = 'FCMR 4D FLOW M'
+elif recon_vel == 0:
+    ds.ProtocolName = 'FCMR 4D M'
 ds.SeriesNumber = "2002"
 ds.AcquistionNumber = 2
 ds.ImageType = ['ORIGINAL', 'PRIMARY', 'M_FFE', 'M', 'FFE']
@@ -740,124 +769,125 @@ print('Output directory:', outputDirM)
 
 ### Create Velocity Dicoms
 
-for iVelVol in range(3):
+if recon_vel == 1:
+    for iVelVol in range(3):
 
-    file_meta, ds = dcm_initialise()
-    ds.InstanceCreatorUID = randomCreatorUID
-    ds.StudyInstanceUID = randomStudyUID
-    ds.FrameOfReferenceUID = randomFrameOfReferenceUID  
-    randomSeriesUID = pydicom.uid.generate_uid(None)
-    ds.SeriesInstanceUID = randomSeriesUID ### Each velocity series should have unique Series UID
+        file_meta, ds = dcm_initialise()
+        ds.InstanceCreatorUID = randomCreatorUID
+        ds.StudyInstanceUID = randomStudyUID
+        ds.FrameOfReferenceUID = randomFrameOfReferenceUID  
+        randomSeriesUID = pydicom.uid.generate_uid(None)
+        ds.SeriesInstanceUID = randomSeriesUID ### Each velocity series should have unique Series UID
 
-    # Define Ref Image UIDs
-    dcm_make_ref_image_sequence(ds, MagVelImUID_R1, MagVelImUID_R2, MagVelImUID_R3)
+        # Define Ref Image UIDs
+        dcm_make_ref_image_sequence(ds, MagVelImUID_R1, MagVelImUID_R2, MagVelImUID_R3)
 
-    # Update Fixed Attributes
-    ds.PatientName = patientName
-    ds.ImageType = ['ORIGINAL', 'PRIMARY', 'VELOCITY MAP', 'P', 'PCA']
-    ds.Rows = nX
-    ds.Columns = nY
-    ds.SliceThickness = str(voxelSpacing)
-    ds.ImageOrientationPatient = ['1','0','0','0','1','0'] # axial. TODO: update to match Nifti
-    ds.PixelSpacing = [str(voxelSpacing), str(voxelSpacing)]
-    ds.SpacingBetweenSlices = str(voxelSpacing)
-    ds.PresentationLUTShape = 'IDENTITY'
+        # Update Fixed Attributes
+        ds.PatientName = patientName
+        ds.ImageType = ['ORIGINAL', 'PRIMARY', 'VELOCITY MAP', 'P', 'PCA']
+        ds.Rows = nX
+        ds.Columns = nY
+        ds.SliceThickness = str(voxelSpacing)
+        ds.ImageOrientationPatient = ['1','0','0','0','1','0'] # axial. TODO: update to match Nifti
+        ds.PixelSpacing = [str(voxelSpacing), str(voxelSpacing)]
+        ds.SpacingBetweenSlices = str(voxelSpacing)
+        ds.PresentationLUTShape = 'IDENTITY'
 
-    # New Fields 09_09_2020
-    ds.StudyDescription = 'PERINATAL RESEARCH - KCL'
-    ds.HeartRate = str(int(round(HeartRate,0)))
-    ds.InstanceCreationDate = str(studyDate)
-    ds.StudyDate = str(studyDate)
-    ds.SeriesDate = str(studyDate)
-    ds.AcquisitionDate = str(studyDate)
-    ds.ContentDate = str(studyDate)
-    ds.StudyTime = str(studyTime)
-    ds.SeriesTime = str(seriesTime)
-    ds.AcquisitionTime = str(seriesTime)
-    ds.ContentTime = str(seriesTime)
+        # New Fields 09_09_2020
+        ds.StudyDescription = 'PERINATAL RESEARCH - KCL'
+        ds.HeartRate = str(int(round(HeartRate,0)))
+        ds.InstanceCreationDate = str(studyDate)
+        ds.StudyDate = str(studyDate)
+        ds.SeriesDate = str(studyDate)
+        ds.AcquisitionDate = str(studyDate)
+        ds.ContentDate = str(studyDate)
+        ds.StudyTime = str(studyTime)
+        ds.SeriesTime = str(seriesTime)
+        ds.AcquisitionTime = str(seriesTime)
+        ds.ContentTime = str(seriesTime)
 
-    # Phase Contrast Attributes Not Found by Codify
-    ds.NumberOfPCDirections = 1
-    ds.NumberOfSlicesMR = nZ
-    ds.NumberOfPhasesMR = nF
-    ds.AcquisitionContrast = 'FLOW_ENCODED'
-    ds.PhaseContrast = 'YES'
-    # ds.VelocityEncodingDirection = [0.0, 0.0, 0.0] # TODO: Not sure if required.
-    ds.VelocityEncodingMinimumValue = 0.0 # TODO: Not sure if required.
+        # Phase Contrast Attributes Not Found by Codify
+        ds.NumberOfPCDirections = 1
+        ds.NumberOfSlicesMR = nZ
+        ds.NumberOfPhasesMR = nF
+        ds.AcquisitionContrast = 'FLOW_ENCODED'
+        ds.PhaseContrast = 'YES'
+        # ds.VelocityEncodingDirection = [0.0, 0.0, 0.0] # TODO: Not sure if required.
+        ds.VelocityEncodingMinimumValue = 0.0 # TODO: Not sure if required.
 
-    # Update Direction Dependent Fixed Attributes
-    if iVelVol==0:
-        ds.ProtocolName = 'FCMR 4D FLOW V0'
-        ds.SeriesDescription = 'kt B-FFE V0'
-        ds.InstanceCreationTime = str(seriesTime + 200)
-        ds.AcquistionNumber = 3
-        ds.SeriesNumber = "2003"
-        ds.WindowWidth = str(v0rWindowWidth)
-        ds.WindowCenter = str(v0rWindowCenter)
-        ds.PCVelocity = [venc, 0, 0]
-        # ds.ReconstructionNumberMR = 3 # TODO: Not sure if required.
-    elif iVelVol==1:
-        ds.ProtocolName = 'FCMR 4D FLOW V1'
-        ds.SeriesDescription = 'kt B-FFE V1'
-        ds.InstanceCreationTime = str(seriesTime + 300)
-        ds.AcquistionNumber = 4
-        ds.SeriesNumber = "2004"
-        ds.WindowWidth = str(v1rWindowWidth)
-        ds.WindowCenter = str(v1rWindowCenter)
-        ds.PCVelocity = [0, venc, 0]
-        # ds.ReconstructionNumberMR = 4 # TODO: Not sure if required.
-    elif iVelVol==2:
-        ds.ProtocolName = 'FCMR 4D FLOW V2'
-        ds.SeriesDescription = 'kt B-FFE V2'
-        ds.InstanceCreationTime = str(seriesTime + 400)
-        ds.AcquistionNumber = 5
-        ds.SeriesNumber = "2005"
-        ds.WindowWidth = str(v2rWindowWidth)
-        ds.WindowCenter = str(v2rWindowCenter)
-        ds.PCVelocity = [0, 0, venc]
-        # ds.ReconstructionNumberMR = 5 # TODO: Not sure if required.
-
-    # Update Instance-wise Attributes
-    for iImage in range(numInstances):
-        
-        iFileCtr = iFileCtr + 1
-        iInst  = iImage + 1
-        iSlice = sliceIndicesArray[iInst-1]
-        iFrame = frameNumbersArray[iInst-1]
-        triggerTime = triggerTimesArray[iInst-1]
-        sliceLocation = sliceLocaArray[iInst-1]
-
-        # Define Instance UIDs
-        randomSOPInstanceUID = pydicom.uid.generate_uid(None)
-        file_meta.MediaStorageSOPInstanceUID = randomSOPInstanceUID
-        ds.SOPInstanceUID = randomSOPInstanceUID
-    
-        ### UPDATE Loop Attributes
-        ds.TriggerTime = str(triggerTime)
-        ds.InstanceNumber = str(iInst)
-        ds.ImagePositionPatient = [str(-1),str(-1),str(sliceLocation)] # TODO: update - should give centre coordinate of slice, i.e: -100, -100, -50
-        ds.SliceLocation = str(sliceLocation)
-        ds.PhaseNumber = int(iFrame)
-        ds.SliceNumberMR = int(iSlice)
-
-        # Create Pixel Data
+        # Update Direction Dependent Fixed Attributes
         if iVelVol==0:
-            ds.PixelData = v0r[:,:,iImage].tobytes()
+            ds.ProtocolName = 'FCMR 4D FLOW V0'
+            ds.SeriesDescription = 'kt B-FFE V0'
+            ds.InstanceCreationTime = str(seriesTime + 200)
+            ds.AcquistionNumber = 3
+            ds.SeriesNumber = "2003"
+            ds.WindowWidth = str(v0rWindowWidth)
+            ds.WindowCenter = str(v0rWindowCenter)
+            ds.PCVelocity = [venc, 0, 0]
+            # ds.ReconstructionNumberMR = 3 # TODO: Not sure if required.
         elif iVelVol==1:
-            ds.PixelData = v1r[:,:,iImage].tobytes()
+            ds.ProtocolName = 'FCMR 4D FLOW V1'
+            ds.SeriesDescription = 'kt B-FFE V1'
+            ds.InstanceCreationTime = str(seriesTime + 300)
+            ds.AcquistionNumber = 4
+            ds.SeriesNumber = "2004"
+            ds.WindowWidth = str(v1rWindowWidth)
+            ds.WindowCenter = str(v1rWindowCenter)
+            ds.PCVelocity = [0, venc, 0]
+            # ds.ReconstructionNumberMR = 4 # TODO: Not sure if required.
         elif iVelVol==2:
-            ds.PixelData = v2r[:,:,iImage].tobytes()
+            ds.ProtocolName = 'FCMR 4D FLOW V2'
+            ds.SeriesDescription = 'kt B-FFE V2'
+            ds.InstanceCreationTime = str(seriesTime + 400)
+            ds.AcquistionNumber = 5
+            ds.SeriesNumber = "2005"
+            ds.WindowWidth = str(v2rWindowWidth)
+            ds.WindowCenter = str(v2rWindowCenter)
+            ds.PCVelocity = [0, 0, venc]
+            # ds.ReconstructionNumberMR = 5 # TODO: Not sure if required.
+
+        # Update Instance-wise Attributes
+        for iImage in range(numInstances):
+            
+            iFileCtr = iFileCtr + 1
+            iInst  = iImage + 1
+            iSlice = sliceIndicesArray[iInst-1]
+            iFrame = frameNumbersArray[iInst-1]
+            triggerTime = triggerTimesArray[iInst-1]
+            sliceLocation = sliceLocaArray[iInst-1]
+
+            # Define Instance UIDs
+            randomSOPInstanceUID = pydicom.uid.generate_uid(None)
+            file_meta.MediaStorageSOPInstanceUID = randomSOPInstanceUID
+            ds.SOPInstanceUID = randomSOPInstanceUID
         
-        ds.file_meta = file_meta
-        ds.is_implicit_VR = True
-        ds.is_little_endian = True
-        ds.save_as( os.path.join( outputDirV[iVelVol], r'IM_%04d'%(iFileCtr) ), write_like_original=False)
+            ### UPDATE Loop Attributes
+            ds.TriggerTime = str(triggerTime)
+            ds.InstanceNumber = str(iInst)
+            ds.ImagePositionPatient = [str(-1),str(-1),str(sliceLocation)] # TODO: update - should give centre coordinate of slice, i.e: -100, -100, -50
+            ds.SliceLocation = str(sliceLocation)
+            ds.PhaseNumber = int(iFrame)
+            ds.SliceNumberMR = int(iSlice)
+
+            # Create Pixel Data
+            if iVelVol==0:
+                ds.PixelData = v0r[:,:,iImage].tobytes()
+            elif iVelVol==1:
+                ds.PixelData = v1r[:,:,iImage].tobytes()
+            elif iVelVol==2:
+                ds.PixelData = v2r[:,:,iImage].tobytes()
+            
+            ds.file_meta = file_meta
+            ds.is_implicit_VR = True
+            ds.is_little_endian = True
+            ds.save_as( os.path.join( outputDirV[iVelVol], r'IM_%04d'%(iFileCtr) ), write_like_original=False)
 
 
-# Output Messages
-print('Velocity DICOM creation complete.')
-print('Output directories:')
-print(outputDirV[0]); print(outputDirV[1]); print(outputDirV[2])
+    # Output Messages
+    print('Velocity DICOM creation complete.')
+    print('Output directories:')
+    print(outputDirV[0]); print(outputDirV[1]); print(outputDirV[2])
 
 
 ### Zip Final Dicoms
