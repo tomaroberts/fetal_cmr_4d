@@ -396,6 +396,23 @@ if strcmp( reconChoice, 'recon_cine_vol' )  || ...
 	% S = summarise_recon( [reconDir '/cine_vol'], [reconDir '/cardsync'], 'verbose', true );
 	% I = plot_info( [reconDir '/cine_vol/info.tsv'] );
     
+    
+    %% 1.11) Create FCMR 4D magnitude dicoms
+    % Python script: .../lib/dicom/fcmr_4d_make_dicom.py
+    % Uses Miniconda install on beastie01 - TODO: make more generalisable
+    % --recon_vel 0 option reconstructs 4D magnitude only.
+    
+    cd(reconDir);
+    fprintf('Creating FCMR 4D magnitude dicoms ...\n');   
+    
+    exportPathCmd = 'export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/home/cmo19/miniconda/bin";'; %nb: Linux PATH not known by Matlab
+    pythonCmd     = ['/home/cmo19/miniconda/bin/python3 /home/cmo19/MATLAB/fetal_cmr_4d-master/lib/dicom/fcmr_4d_make_dicom.py -r ' reconDir '/ -f ' num2str(fcmrNo) ' --recon_vel 0'];
+    cmdStr        = strcat(exportPathCmd, pythonCmd);
+	system(cmdStr);
+    
+    fprintf('Completed dicom creation ...\n');
+    
+    
     fprintf('\n____________ Part 1.2) 4D magnitude volume (cine_vol) RECONSTRUCTION COMPLETE ____________\n\n');
 
 end
@@ -462,12 +479,15 @@ if strcmp( reconChoice, 'recon_vel_vol' ) || ...
     fprintf('Completed fcmr_4dflow_postprocessing ...\n');
     
     
-    %% 2.6) Create FCMR 4D dicoms
+    %% 2.6) Create FCMR 4D flow dicoms
     % Python script: .../lib/dicom/fcmr_4d_make_dicom.py
     % Uses Miniconda install on beastie01 - TODO: make more generalisable
     
     cd(reconDir);
-    fprintf('Creating FCMR dicoms ...\n');   
+    fprintf('Creating FCMR 4D flow dicoms ...\n');
+    
+    % Remove existing dcm_4d folder created in Part 1
+    rmdir( fullfile( reconDir, 'dcm_4d' ), 's' );
     
     exportPathCmd = 'export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/home/cmo19/miniconda/bin";'; %nb: Linux PATH not known by Matlab
     pythonCmd     = ['/home/cmo19/miniconda/bin/python3 /home/cmo19/MATLAB/fetal_cmr_4d-master/lib/dicom/fcmr_4d_make_dicom.py -r ' reconDir '/ -f ' num2str(fcmrNo)];
