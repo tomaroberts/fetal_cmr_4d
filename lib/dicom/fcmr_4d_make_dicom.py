@@ -182,7 +182,8 @@ if recon_vel == 1:
 
 # set background pixels = 0 (-1 in SVRTK)
 iBkrd = c==-1
-c[iBkrd] = 0; 
+c[iBkrd] = 0
+
 if recon_vel == 1:
     v0[iBkrd] = 0; v1[iBkrd] = 0; v2[iBkrd] = 0
 
