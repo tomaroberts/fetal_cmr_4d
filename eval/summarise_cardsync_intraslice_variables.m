@@ -147,7 +147,7 @@ fprintf('   Sweep Heart Rate = %.0f\n',      60 ./ cell2mat( SWP(iStk).tRRSwpLoc
 % - Frame offset = 
 
 
-iStk = 2;
+iStk = 4;
 
 maxDupl = 3;
 

@@ -146,8 +146,7 @@ switch acqMethod
                 idxSwpWin = P.Sweep.swpWindows(:,iLoc);
                 S(iStk).tFrame{iLoc} = S(iStk).tFrameSwpLoca(idxSwpWin);
             
-            end
-            
+            end            
             
 %             % View from t = 0
 %             figure; plot( cell2mat(S(iStk).tFrame) - P.Timing.tSeriesOffset );
