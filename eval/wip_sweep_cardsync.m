@@ -148,6 +148,7 @@ fprintf('   Sweep Heart Rate = %.0f\n',      60 ./ cell2mat( SWP(iStk).tRRSwpLoc
 
 
 iStk = 4;
+numSwpLoca   = max( P(iStk).Sweep.swpWindows(:) );
 
 maxDupl = 3;
 
@@ -194,15 +195,17 @@ legend('Mean','Min/Max');
 tF = [];
 thetamean = [];
 
+WHY=S(iStk).nLoc+2;
+
 tF = S(iStk).tFrameSwpLoca - S(iStk).tFrameSwpLoca(1);
-tF = reshape(tF, [], 34);
+tF = reshape(tF, [], WHY);
 
 tRRmean = 60 ./ xmean(1:32:end);
 
 nDyn = 32;
 frameDuration = 0.073;
 
-for iRR = 1:34
+for iRR = 1:WHY
     
     nTrigger(iRR) = ceil( nDyn * frameDuration / tRRmean(iRR) );
     tRTriggermean(:,iRR) = tF(1,iRR) + tRRmean(iRR) * (0:nTrigger(iRR));
@@ -223,7 +226,7 @@ end
 deltaPhase = 0;
 phaseOffset = 0;
 
-for iRR = 2:34
+for iRR = 2:WHY
     deltaPhase(iRR) = cPF(2,iRR) - cPF(1,iRR); % change in cardiac phase for current window
     phaseOffset(iRR) = cPF(end,iRR-1) + deltaPhase(iRR); % phase of previous frame
     cPF(:,iRR) = cPF(:,iRR) + phaseOffset(iRR); % offset phases of new window
@@ -234,10 +237,10 @@ thetamean = thetamean(:);
 
 figure; hold on;
 plot(thetamean,'ok','MarkerFaceColor','k');
-plot(1:32:1088,thetamean(1:32:1088),'ko','Markersize',15);
-xticks(1:32:1088);
+plot(1:32:numSwpLoca,thetamean(1:32:numSwpLoca),'ko','Markersize',15);
+xticks(1:32:numSwpLoca);
 grid; grid minor;
-axis([1 1088 -1 2*pi*1.1]);
+axis([1 numSwpLoca -1 2*pi*1.1]);
 ylabel('Cardiac Phase (theta)');
 xlabel('Sweep Volume Location (z-position/frame index)');
 

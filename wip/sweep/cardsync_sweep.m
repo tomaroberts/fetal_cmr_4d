@@ -141,16 +141,16 @@ for iStk = 1:nStack
     end
 
     % Mean/Max/Min Heart Rate for Every Frame
-    hrMeanSwpLoca = mean( duplicateHR, 1, 'omitnan' );
-    hrMaxSwpLoca  =  max( duplicateHR );
-    hrMinSwpLoca  =  min( duplicateHR );
+    S(iStk).hrMeanSwpLoca = mean( duplicateHR, 1, 'omitnan' );
+    S(iStk).hrMaxSwpLoca  =  max( duplicateHR );
+    S(iStk).hrMinSwpLoca  =  min( duplicateHR );
 
     % Plot Mean, Min, Max HRs
     figure; hold on;
-    plot(hrMeanSwpLoca, '-r'); % bodge for legend
-    area(hrMaxSwpLoca,  'FaceColor',[0.9 0.9 0.9]);
-    area(hrMinSwpLoca,  'FaceColor','white');
-    plot(hrMeanSwpLoca, '-r');
+    plot(S(iStk).hrMeanSwpLoca, '-r'); % bodge for legend
+    area(S(iStk).hrMaxSwpLoca,  'FaceColor',[0.9 0.9 0.9]);
+    area(S(iStk).hrMinSwpLoca,  'FaceColor','white');
+    plot(S(iStk).hrMeanSwpLoca, '-r');
     
     AX = axis;
     axis([1 length(S(iStk).tRRSwpLoca) round(AX(4)*0.8) AX(4)]);
@@ -185,60 +185,68 @@ end
 
 for iStk = 1:nStack
 
+    nBins(iStk) = nSW(iStk) + 2; 
+    % TODO: 
+    % - not sure this is will work for all strides
+    % - Might be problematic if Sweep Window Width not divisible by Stride    
+    
     % Bin Frame Times (set frame 1 @ t = 0)
     tF = [];
     tF = S(iStk).tFrameSwpLoca - S(iStk).tFrameSwpLoca(1);
-    tF = reshape( tF, [], nSW(iStk) );
+    tF = reshape( tF, [], nBins(iStk) ); % bin width = stride length
     
     frameDuration = P(iStk).Timing.frameDuration;
     
     % Bin Cardiac Phases
     thetaF = [];
 
-    % Mean RR for Each Bin
-    tRRmean = [];
-    tRRmean = 60 ./ hrMeanSwpLoca( 1:nSW(iStk):end );
+    % Mean RR for each Bin
+    tRRMean = [];
+    tRRMean = 60 ./ S(iStk).hrMeanSwpLoca( 1:SWs(iStk):end ); % simply get first value for each bin
 
-    % Calculate Phase for Each Window
-    for iRR = 1:nSW(iStk)
+%     % TO DELETE: Calculate Phase for Each Window
+%     for iRR = 1:nBins(iStk) % TO CHECK: should this be 1:SWs(iStk) ???
+% 
+%         nTrigger(iRR) = ceil( SWs(iStk) * frameDuration / tRRMean(iRR) );
+%         tRTriggerMean(:,iRR) = tF(1,iRR) + tRRMean(iRR) * (0:nTrigger(iRR));        
+% 
+%         [ ~, cardPhaseFraction(:,iRR) ] = calc_cardiac_timing( tF(:,iRR), tRTriggerMean(:,iRR) );
+% 
+%     end
 
-        nTrigger(iRR) = ceil( nSW(iStk) * frameDuration / tRRmean(iRR) );
-        tRTriggermean(:,iRR) = tF(1,iRR) + tRRmean(iRR) * (0:nTrigger(iRR));
-
-    %     % NB: this is slightly different to deltaPhase below
-    %     % Here, the 33rd frame begins is offset according to RR of previous
-    %     % window
-    %     if iRR > 1
-    %         deltaPhase = cPF(2,iRR-1) - cPF(1,iRR-1);
-    %         cPF(1,iRR) = cPF(end,iRR-1) + deltaPhase;
-    %     end
-
-        [ ~, cardPhaseFraction(:,iRR) ] = calc_cardiac_timing( tF(:,iRR), tRTriggermean(:,iRR) );
-
+    % Cell Array Method (in keeping with Josh - might be better)
+    for iRR = 1:nBins(iStk)
+        
+        S(iStk).nTrigger{iRR} = ceil( SWs(iStk) * frameDuration / tRRMean(iRR) );
+        S(iStk).tRTriggerMean{iRR} = tF(1,iRR) + tRRMean(iRR) * ( 0:S(iStk).nTrigger{iRR} );
+        
+        [ ~, S(iStk).cardPhaseFraction(:,iRR) ] = calc_cardiac_timing( tF(:,iRR), S(iStk).tRTriggerMean{iRR} );
+    
     end
-
+    
+    
     % Offset cardPhase by Phase of Preceding Window and deltaPhase of Current Window
     deltaPhase  = 0;
     phaseOffset = 0;
 
-    for iRR = 2:nSW(iStk) % First iRR does not need offset
+    for iRR = 2:nBins(iStk) % First iRR does not need offset
         
         % Change in Cardiac Phase for Current Window
-        deltaPhase(iRR)  = cardPhaseFraction(2,iRR) - cardPhaseFraction(1,iRR); 
+        deltaPhase(iRR)  = S(iStk).cardPhaseFraction(2,iRR) - S(iStk).cardPhaseFraction(1,iRR); 
         
         % Phase of Previous Frame
-        phaseOffset(iRR) = cardPhaseFraction(end,iRR-1) + deltaPhase(iRR); % phase of previous frame
+        phaseOffset(iRR) = S(iStk).cardPhaseFraction(end,iRR-1) + deltaPhase(iRR); % phase of previous frame
         
         % Apply Offset to Phases of Current Window
-        cardPhaseFraction(:,iRR) = cardPhaseFraction(:,iRR) + phaseOffset(iRR); % offset phases of new window
+        S(iStk).cardPhaseFraction(:,iRR) = S(iStk).cardPhaseFraction(:,iRR) + phaseOffset(iRR); % offset phases of new window
 
     end
     
     % Convert to 2PI Range
-    thetaFrameSwpBins = wrapTo2Pi( 2 * pi * cardPhaseFraction );
+    thetaFrameSwpBins = wrapTo2Pi( 2 * pi * S(iStk).cardPhaseFraction );
     
     % Assign to S
-    for iRR = 1:nSW(iStk)
+    for iRR = 1:nBins(iStk)
         S(iStk).thetaFrameSwpBins{iRR} = 2 * pi * thetaFrameSwpBins(:,iRR);
     end
 
@@ -247,10 +255,10 @@ for iStk = 1:nStack
 
     figure('units','normalized','outerposition',[0 0 1 1]); hold on;
     plot( thetaFrameSwpBins, 'ok', 'MarkerFaceColor','k' );
-    plot( 1:nSW(iStk):nSL(iStk), thetaFrameSwpBins(1:nSW(iStk):nSL(iStk)), 'ok', 'Markersize', 15 );
-    xticks( 1:nSW(iStk):nSL(iStk) );
+    plot( 1:SWs(iStk):nSL(iStk), thetaFrameSwpBins(1:SWs(iStk):nSL(iStk)), 'ok', 'Markersize', 15 );
+    xticks( 1:SWs(iStk):nSL(iStk)+SWs(iStk) );
     grid; grid minor;
-    axis([1 nSL(iStk) -0.1 2*pi+0.1]);
+    axis([1 nSL(iStk)+SWs(iStk) -0.1 2*pi+0.1]);
     ylabel('Cardiac Phase (theta)');
     xlabel('Sweep Volume Location (z-position/frame index)');
     legend('Frame','First Frame of Bin','Location','NorthWest');
@@ -267,7 +275,24 @@ for iStk = 1:nStack
 end
 
 
+%% Save Results to Text Files
 
+% TODO: Do I need something like this here?
+
+% fid = fopen( fullfile( resultsDir, 'mean_rrinterval.txt' ), 'w' );
+% fprintf( fid, '%.6f ', mean( cell2mat( [ S.tRR ] ) ) );
+% fclose( fid );
+% fid = fopen( fullfile( resultsDir, 'rrintervals.txt' ), 'w' );
+% fprintf( fid, '%.6f ', cell2mat( [ S.tRR ] ) );
+% fclose( fid );
+% fid = fopen( fullfile( resultsDir, 'cardphases_intraslice_cardsync.txt' ), 'w' );
+% fprintf( fid, '%.6f ', cell2mat( [ S.thetaFrame ] ) );
+% fclose( fid );
+
+
+%% Save Results to .mat File
+
+save( fullfile( resultsDir, 'results_cardsync_sweep.mat' ), 'S', '-v7.3' )
 
 
 % cardsync_sweep(...)
