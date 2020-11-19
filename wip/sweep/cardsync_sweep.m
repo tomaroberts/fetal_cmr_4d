@@ -57,7 +57,6 @@ for iStk = 1:nStack
     M       = matfile( S(iStk).rltParamFile );
     P(iStk) = M.PARAM;
     
-    % Get Required Parameters
     nSW(iStk) = P(iStk).Sweep.numSwpWindows;
     SWw(iStk) = P(iStk).Sweep.swpWinFullWidth;
     SWs(iStk) = P(iStk).Sweep.swpWinStride;
@@ -145,7 +144,6 @@ for iStk = 1:nStack
     S(iStk).hrMaxSwpLoca  =  max( duplicateHR );
     S(iStk).hrMinSwpLoca  =  min( duplicateHR );
 
-    % Plot Mean, Min, Max HRs
     figure; hold on;
     plot(S(iStk).hrMeanSwpLoca, '-r'); % bodge for legend
     area(S(iStk).hrMaxSwpLoca,  'FaceColor',[0.9 0.9 0.9]);
@@ -204,17 +202,8 @@ for iStk = 1:nStack
     tRRMean = [];
     tRRMean = 60 ./ S(iStk).hrMeanSwpLoca( 1:SWs(iStk):end ); % simply get first value for each bin
 
-%     % TO DELETE: Calculate Phase for Each Window
-%     for iRR = 1:nBins(iStk) % TO CHECK: should this be 1:SWs(iStk) ???
-% 
-%         nTrigger(iRR) = ceil( SWs(iStk) * frameDuration / tRRMean(iRR) );
-%         tRTriggerMean(:,iRR) = tF(1,iRR) + tRRMean(iRR) * (0:nTrigger(iRR));        
-% 
-%         [ ~, cardPhaseFraction(:,iRR) ] = calc_cardiac_timing( tF(:,iRR), tRTriggerMean(:,iRR) );
-% 
-%     end
-
-    % Cell Array Method (in keeping with Josh - might be better)
+    
+    % Calculate Cardiac Phases for Each Window
     for iRR = 1:nBins(iStk)
         
         S(iStk).nTrigger{iRR} = ceil( SWs(iStk) * frameDuration / tRRMean(iRR) );
@@ -225,7 +214,7 @@ for iStk = 1:nStack
     end
     
     
-    % Offset cardPhase by Phase of Preceding Window and deltaPhase of Current Window
+    % Offset Cardiac Phases by Phase of Preceding Window and deltaPhase of Current Window
     deltaPhase  = 0;
     phaseOffset = 0;
 
@@ -242,12 +231,13 @@ for iStk = 1:nStack
 
     end
     
+    
     % Convert to 2PI Range
     thetaFrameSwpBins = wrapTo2Pi( 2 * pi * S(iStk).cardPhaseFraction );
     
     % Assign to S
     for iRR = 1:nBins(iStk)
-        S(iStk).thetaFrameSwpBins{iRR} = 2 * pi * thetaFrameSwpBins(:,iRR);
+        S(iStk).thetaFrameSwpBins{iRR} = thetaFrameSwpBins(:,iRR);
     end
 
     % Plot thetaFrame Graph
