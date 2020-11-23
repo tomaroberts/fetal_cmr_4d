@@ -68,6 +68,8 @@ for iStk = 1:nStack
     % Load NIfTI
     R(iStk) = load_untouch_nii( S(iStk).rltAbFile );
     
+    clear M
+    
 end
     
 
@@ -78,9 +80,25 @@ apodizationLength = 0; % 0 = no apodization
 
 for iStk = 1:nStack
     
+    nX   = size( R(iStk).img, 1 );
+    nY   = size( R(iStk).img, 2 );
+    nZ   = size( R(iStk).img, 3 );
+    nT   = size( R(iStk).img, 4 );
+    
     % TODO: Decide where this filtering comes into the pipeline. Here or in
     % ktrecon code?
     [ R(iStk).img, P(iStk).Sweep ] = sweep_window_filter( R(iStk).img, P(iStk).Sweep, apodizationLength );
+    
+    % Adjust 4d parameters to 3d parameters
+    R(iStk).hdr.dime.dim(1) = 3;
+    R(iStk).hdr.dime.dim(4) = size( R(iStk).img,3 );
+    R(iStk).hdr.dime.dim(5) = 1;
+
+    % nii3d.hdr.dime.pixdim(1) = 0; % Not sure necessary? 0 or 1?
+    R(iStk).hdr.dime.pixdim(4) = R(iStk).hdr.dime.pixdim(4) / nT;
+
+    % Save
+    save_untouch_nii( R(iStk), [S(iStk).rltAbFile(1:end-7) '_swp3d_apod.nii.gz' ] );    
     
 end
 
