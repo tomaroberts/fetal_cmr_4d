@@ -1,28 +1,91 @@
+function S = recon_reslice_sweep( S, varargin )
+%RECON_RESLICE_SWEEP  reslice sweep volume for SVRTK
+%
+%   S = RECON_RESLICE_SWEEP( S ) 
+%
+%   RECON_RESLICE_SWEEP( ..., 'name', value ) specifies optional input argument. 
+%   See code for name-value pairs.
+%
+
+%   tar (t.roberts@kcl.ac.uk)
 
 
-%% Run recon_binned_sweep.m until apodization is complete
+%% Optional Input Argument Default Values
 
-% Then ...
+default.reconDir        = pwd;
+default.nDyn            = 64;
+default.isVerbose       = true;
 
 
-%% Reslice Sweep Volumes into 4D
+%% Parse Input
+
+p = inputParser;
+
+if  verLessThan('matlab','8.2')
+    add_param_fn = @( parseobj, argname, defaultval, validator ) addParamValue( parseobj, argname, defaultval, validator );
+else
+    add_param_fn = @( parseobj, argname, defaultval, validator ) addParameter( parseobj, argname, defaultval, validator );
+end
+
+
+addRequired(   p, 'S', ... 
+    @(x) validateattributes( x, {'struct'}, {'vector'}, mfilename) );
+
+add_param_fn(   p, 'recondir', default.reconDir, ...
+    @(x) validateattributes( x, {'char'}, {'vector'}, mfilename) );
+
+add_param_fn(  p, 'ndyn', default.nDyn, ...
+        @(x) validateattributes( x, {'numeric'}, {'scalar','nonnegative'}, mfilename ) );
+
+add_param_fn(   p, 'verbose', default.isVerbose, ...
+    @(x) validateattributes( x, {'logical'}, {'scalar'}, mfilename) );
+
+parse( p, S, varargin{:} );
+
+reconDir        = p.Results.recondir;
+nDyn            = p.Results.ndyn;
+isVerbose       = p.Results.verbose;
+
+
+%% Setup
+
+dataDir     = fullfile( reconDir, 'data' );
+maskDir     = fullfile( reconDir, 'mask' );
+ktreconDir  = fullfile( reconDir, 'ktrecon' );
+isVerbose   = false;
+
+nStack      = numel( S );
+
+
+%% Load Sweep Stacks and Masks
 
 for iStk = 1:nStack
-% for iStk = 1
+
+    % Load Params
+    MAT = matfile( S(iStk).rltParamFile );
+    P(iStk) = MAT.PARAM;
+
+    % Load Sweep Stack
+    R(iStk) = load_untouch_nii( S(iStk).rltAbFile(1:end-7), '_swp3d_apod.nii.gz' );
     
-    % Get Cardiac Phases
-    thetaFrameSwpBins = [];
-    thetaFrameSwpBins = cell2mat( S(iStk).thetaFrameSwpBins );
-    thetaFrameSwpBins = thetaFrameSwpBins(:);
+    % Load Mask
+    N = load_untouch_nii( strcat( S(iStk).maskHeartFile(1:end-7), '_swp3d_apod.nii.gz' ) );
+    M{iStk} = single( N.img );
+    clear MAT N
     
+end
+
+
+%% Reslice Sweep Volumes into 4-D
+
+for iStk = 1:nStack 
     
-    % Binning Configuration
+    % Reslice Configuration
     nX         = size( R(iStk).img, 1 );
     nY         = size( R(iStk).img, 2 );
     numSwpLoca = max( P(iStk).Sweep.swpWindows(:) ); %TODO: change to size( R(iStk).img, 3 ); so compatible with sweep_window_filter.m ?
     nDyn       = 64;
     nSlices    = numSwpLoca / nDyn;
-%    nSlices    = 16;
     
     binWidthSlices = numSwpLoca / nSlices;
 
@@ -30,20 +93,18 @@ for iStk = 1:nStack
         error( ['Number of slices does not give integer bin width. Possible bin widths = ' num2str(divisors(numSwpLoca)) ] );
     end
     
-    % Init Slice and Cardiac Phase Bins
+    % Init Slice Bins
     edgesSlices = 1:binWidthSlices:numSwpLoca+binWidthSlices;
     binsSlices  = discretize( 1:numSwpLoca, edgesSlices );
     
-    % Bin Sweep volume into Slices
-%     R_binned{iStk,1} = cell(1,nSlices);
-    R_binned(iStk).img = [];
+    % Reslice Sweep Volume
+    R_resliced(iStk).img = [];
     
     for iS = 1:nSlices
 
         currentBinRange = edgesSlices(iS):edgesSlices(iS+1)-1;
         
-%         R_binned{iStk,1}{1,iS} = R(iStk).img( :,:,currentBinRange );
-    R_binned(iStk).img( :,:,iS,: ) = R(iStk).img( :,:,currentBinRange );
+        R_resliced(iStk).img( :,:,iS,: ) = R(iStk).img( :,:,currentBinRange );
 
     end
     
@@ -55,17 +116,23 @@ end
 for iStk = 1:nStack
     
     % Update img
-    R(iStk).img = R_binned(iStk).img;
+    R(iStk).img = R_resliced(iStk).img;
     
     % Update Header
     % TODO: do I need to update more fields? Affine?
-    nSlices = size( R_binned(iStk).img, 3 );
-    nDyn    = size( R_binned(iStk).img, 4 );
+    nSlices = size( R_resliced(iStk).img, 3 );
+    nDyn    = size( R_resliced(iStk).img, 4 );
     R(iStk).hdr.dime.dim([4,5]) = [nSlices, nDyn];     
     
-    % Save
-    S(iStk).rltBinnedAbFile = fullfile( ktreconDir, sprintf( '%s_rlt_ab_swp_sliced.nii.gz', S(iStk).desc ) );
+    % Save Resliced Sweep
+    S(iStk).rltBinnedAbFile = fullfile( dataDir, sprintf( '%s_rlt_ab_swp_resliced.nii.gz', S(iStk).desc ) );
     save_untouch_nii( R(iStk), S(iStk).rltBinnedAbFile );
-
+    
+    % Save Resliced Mask
+    % TODO:
+    
 end
 
+
+% recon_reslice_sweep(...)
+end
