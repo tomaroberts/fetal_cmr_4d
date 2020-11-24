@@ -131,20 +131,27 @@ switch acqMethod
             S(iStk).nLoc             = size( R.img,3 ); % For Sweep, nLoc = numSwpWindows
             S(iStk).sliceThickness   = P.Scan.RecVoxelSize(3);
 
+
             % Calculate Unique Sweep Frame Times
-            for iSwpLoca = 1:max(P.Sweep.swpWindows(:))
+            for iSwpLoc = 1:max(P.Sweep.swpWindows(:))
 
                 % Sweep Image Series - Linear Frame Times
-                S(iStk).frameDuration           = P.Timing.frameDuration;
-                S(iStk).tFrameSwpLoca(iSwpLoca) = P.Timing.tSeriesOffset + S(iStk).frameDuration * (iSwpLoca-1); % linear increment
+                S(iStk).frameDuration         = P.Timing.frameDuration;
+                S(iStk).tFrameSwpLoc(iSwpLoc) = P.Timing.tSeriesOffset + S(iStk).frameDuration * (iSwpLoc-1); % linear increment
                 
             end
             
-            % Calculate Sweep Window Frame Times
+            % Number Locations/Frames in Sweep Stack
+            S(iStk).nSwpLoc = numel( S(iStk).tFrameSwpLoc );
+            
+            % Init Apodization Tracker
+            S(iStk).isApod = zeros( size(S(iStk).tFrameSwpLoc) );            
+            
+            % Calculate Frame Times
             for iLoc = 1:S(iStk).nLoc
                 
                 idxSwpWin = P.Sweep.swpWindows(:,iLoc);
-                S(iStk).tFrame{iLoc} = S(iStk).tFrameSwpLoca(idxSwpWin);
+                S(iStk).tFrame{iLoc} = S(iStk).tFrameSwpLoc(idxSwpWin);
             
             end            
             
@@ -158,8 +165,6 @@ end
 
 %% Plot Frame Timings
 
-% Plot tFrame
-% TODO: create equivalent for 'swp'
 if isVerbose
     
     if strcmp(acqMethod,'m2d')
@@ -182,7 +187,7 @@ if isVerbose
     elseif strcmp(acqMethod,'sweep') || strcmp(acqMethod,'swp')
         
         figure; hold on;
-        plot( S(iStk).tFrameSwpLoca - P.Timing.tSeriesOffset );
+        plot( S(iStk).tFrameSwpLoc - P.Timing.tSeriesOffset );
         plot( cell2mat(S(iStk).tFrame) - P.Timing.tSeriesOffset ); % TODO: add plot() showing the which tFrames used
         legend('Linear Sweep','Sweep Windows','Location','SouthEast');
         title(['Stack ID: ' S(iStk).desc]);
