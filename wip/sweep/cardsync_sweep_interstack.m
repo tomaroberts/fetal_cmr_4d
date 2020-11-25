@@ -15,6 +15,7 @@ function S = cardsync_sweep_interstack( S, varargin )
 
 default.reconDir        = pwd;
 default.resultsDir      = pwd;
+default.nPhases         = 25;       % Number of Phases for determination of Stack-stack alignment
 default.isVerbose       = true;
 
 
@@ -38,6 +39,9 @@ add_param_fn(   p, 'recondir', default.reconDir, ...
 add_param_fn(   p, 'resultsdir', default.resultsDir, ...
     @(x) validateattributes( x, {'char'}, {'vector'}, mfilename) );
 
+add_param_fn(  p, 'nphases', default.nPhases, ...
+        @(x) validateattributes( x, {'numeric'}, {'scalar','nonnegative'}, mfilename ) );
+
 add_param_fn(   p, 'verbose', default.isVerbose, ...
     @(x) validateattributes( x, {'logical'}, {'scalar'}, mfilename) );
 
@@ -45,6 +49,7 @@ parse( p, S, varargin{:} );
 
 reconDir        = p.Results.recondir;
 resultsDir      = p.Results.resultsdir;
+nPhases         = p.Results.nphases;
 isVerbose       = p.Results.verbose;
 
 
@@ -60,69 +65,22 @@ isVerbose   = false;
 nStack      = numel( S );
 
 
-%% Load Windowed Sweep Data
+%% Load Data
 
 for iStk = 1:nStack
 
     % Load Params
-    M = matfile( S(iStk).rltParamFile );
-    P(iStk) = M.PARAM;
+    MAT = matfile( S(iStk).rltParamFile );
+    P(iStk) = MAT.PARAM;
 
-    % Load NIfTI
-    R(iStk) = load_untouch_nii( S(iStk).rltAbFile );
+    % Load Sweep Data
+    R(iStk) = load_untouch_nii( S(iStk).rltAbSwpApodFile );
     
-    clear M
-    
-end
-    
-
-%% Apodize Sweep Windows
-% Filter out artefacted images at start/end of sweep window
-% Small side-effect: this will trim the Sweep volume by 2 * apodizationLength
-% - e.g.: if Sweep volume has 1024 locations and apodizationLength = 12, then
-%   the first and last 12 locations will be trimmed away
-% - Cardiac phases etc. must be updated accordingly
-
-apodizationLength = 0; % 0 = no apodization
-
-for iStk = 1:nStack
-    
-    nX   = size( R(iStk).img, 1 );
-    nY   = size( R(iStk).img, 2 );
-    nZ   = size( R(iStk).img, 3 );
-    nT   = size( R(iStk).img, 4 );
-    
-    % TODO: Decide where this filtering comes into the pipeline. Here or in
-    % ktrecon code?
-    [ R(iStk).img, P(iStk).Sweep ] = sweep_window_filter( R(iStk).img, P(iStk).Sweep, apodizationLength );
-    
-    % Adjust 4d parameters to 3d parameters
-    R(iStk).hdr.dime.dim(1) = 3;
-    R(iStk).hdr.dime.dim(4) = size( R(iStk).img,3 );
-    R(iStk).hdr.dime.dim(5) = 1;
-
-    % nii3d.hdr.dime.pixdim(1) = 0; % Not sure necessary? 0 or 1?
-    R(iStk).hdr.dime.pixdim(4) = R(iStk).hdr.dime.pixdim(4) / nT;
-
-    % Save
-    save_untouch_nii( R(iStk), [S(iStk).rltAbFile(1:end-7) '_swp3d_apod.nii.gz' ] );    
-    
-end
-
-
-%%%%% TODO: currently need to manually mask the _apod.nii.gz here.
-
-
-%% Stack-stack cardsync
-
-
-%% Load Masks
-for iStk = 1:nStack
-   
-    N = load_untouch_nii( strcat( S(iStk).maskHeartFile(1:end-7), '_swp3d_apod.nii.gz' ) );
+    % Load Masks
+    N = load_untouch_nii( S(iStk).maskHeartSwpApodFile );
     M{iStk} = single( N.img );
 
-    clear N
+    clear N MAT
     
 end
 
@@ -152,7 +110,7 @@ end
 
 for iStk = 1:nStack
     
-    numSwpLoc = max( P(iStk).Sweep.swpWindows(:) );
+    numSwpLoc = size( RBP{iStk}, 3 );
     
     for iLoc = 1:numSwpLoc     
         
@@ -166,8 +124,7 @@ for iStk = 1:nStack
 
 end
 
-% figure; 
-% plot(S(iStk).meanSignalBP,'.-k');
+% figure; plot(S(iStk).meanSignalBP,'.-k');
 % AX = axis; axis([1 numSwpLoc AX(3) AX(4)]);
 
 
@@ -175,20 +132,17 @@ end
 
 for iStk = 1:nStack
 
-    thetaFrameSwpBins = [];
-    thetaFrameSwpBins = cell2mat( S(iStk).thetaFrameSwpBins );
-    thetaFrameSwpBins = thetaFrameSwpBins(:);
+    thetaFrameSwpBins        = [];
+    thetaFrameSwpBins        = cell2mat( S(iStk).thetaFrameSwpBins );
+    S(iStk).thetaFrameSwpLoc = thetaFrameSwpBins(:);
     
-    % Binning Configuration
-    nX        = size( R(iStk).img, 1 );
-    nY        = size( R(iStk).img, 2 );
-    numSwpLoc =  max( P(iStk).Sweep.swpWindows(:) ); %TODO: change to size( R(iStk).img, 3 ); so compatible with sweep_window_filter.m ?
-    nPhases   = 25;   
+    % Apply Apodization
+    S(iStk).thetaFrameSwpLoc( S(iStk).isApod == 1) = [];
     
-    % Init Cardiac Phase Bins
+    % Setup Cardiac Phase Bins
     edgesPhase = []; binsPhases = [];
     edgesPhases = linspace(0,2*pi,nPhases+1);
-    binsPhases  = discretize( thetaFrameSwpBins', edgesPhases );
+    binsPhases  = discretize( S(iStk).thetaFrameSwpLoc', edgesPhases );
 
     % Mean Blood-pool Signal over Frames in Each Phase Range   
     for iP = 1:nPhases
@@ -275,10 +229,13 @@ end
 
 
 %% Update thetaFrame Timings
+% TODO: save updated version of sweep_intrastack_cardiac_phases_s*.fig ?
+%       i.e.: sweep_interstack_cardiac_phases_s*.fig
+
 
 for iStk = 1:nStack
     
-    S(iStk).thetaFrameSwpBins = S(iStk).thetaFrameSwpBins - S(iStk).thetaOffsetStack;
+    S(iStk).thetaFrameSwpLoc = S(iStk).thetaFrameSwpLoc - S(iStk).thetaInterStackOffset;
     
 end
 
@@ -294,7 +251,7 @@ end
 % fprintf( fid, '%.6f ', cell2mat( [ S.tRR ] ) );
 % fclose( fid );
 fid = fopen( fullfile( resultsDir, 'cardphases_interstack_cardsync.txt' ), 'w' );
-fprintf( fid, '%.6f ', cell2mat( [ S.thetaFrameSwpBins ] ) );
+fprintf( fid, '%.6f ', cat( 1, S.thetaFrameSwpLoc ) );
 fclose( fid );
 
 
