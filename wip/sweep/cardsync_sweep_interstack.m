@@ -191,6 +191,15 @@ for iStk = 1:nStack
 end
 
 
+%% Align Stacks - Cross Correlation
+% TODO: implement cross correlation of stack R-R intervals
+% for iStk = 1:nStack
+%    
+%     xcorr ... ?
+%     
+% end
+
+
 %% Align End-Diastole of Each Stack
 
 % Alignment Method:
@@ -235,7 +244,7 @@ end
 
 for iStk = 1:nStack
     
-    S(iStk).thetaFrameSwpLoc = S(iStk).thetaFrameSwpLoc - S(iStk).thetaInterStackOffset;
+    S(iStk).thetaFrameSwpLoc = wrapTo2Pi( S(iStk).thetaFrameSwpLoc - S(iStk).thetaInterStackOffset );
     
 end
 
