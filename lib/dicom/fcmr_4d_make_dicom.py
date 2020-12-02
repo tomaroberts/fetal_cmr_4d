@@ -155,9 +155,15 @@ if recon_vel == 1:
     velVol1_img = velVol1_nii.get_fdata()
     velVol2_img = velVol2_nii.get_fdata()
 
+    maskDir=r'mask'
+    maskBloodPoolniiFileName=r'mask_blood_pool-RESLICE.nii.gz'
+    mask_bp_nii = nib.load( os.path.join( fcmrDir, maskDir, maskBloodPoolniiFileName ) )
+    mask_bp_img = mask_bp_nii.get_fdata()
+
     print("Shape of vel_vol0 nifti:", velVol0_img.shape)
     print("Shape of vel_vol1 nifti:", velVol1_img.shape)
     print("Shape of vel_vol2 nifti:", velVol2_img.shape)
+    print("Shape of mask_blood_pool nifti:", mask_bp_img.shape)
 
     if not cineVol_img.shape==velVol0_img.shape:
         print("WARNING: 4D cine_vol and 4D vel_vol volumes are different shapes.")
@@ -179,6 +185,17 @@ if recon_vel == 1:
     v0  = np.reshape(velVol0_img, [nX, nY, nZ*nF])
     v1  = np.reshape(velVol1_img, [nX, nY, nZ*nF])
     v2  = np.reshape(velVol2_img, [nX, nY, nZ*nF])
+    m   = np.reshape(mask_bp_img, [nX, nY, nZ*nF])
+
+    # Apply blood pool mask
+    v0 = numpy.multiply(v0,m)
+    v1 = numpy.multiply(v1,m)
+    v2 = numpy.multiply(v2,m)
+
+    vMag = numpy.sqrt( (v0**2)+(v1**2)+(v2**2) )
+    v0[vMag<0.01] = 0; v1[vMag<0.01] = 0; v2[vMag<0.01] = 0
+    v0[vMag>2] = 0; v1[vMag>2] = 0; v2[vMag>2] = 0
+
 
 # set background pixels = 0 (-1 in SVRTK)
 iBkrd = c==-1
