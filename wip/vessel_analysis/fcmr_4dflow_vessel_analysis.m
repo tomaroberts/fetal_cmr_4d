@@ -8,7 +8,7 @@ function T_all = fcmr_4dflow_vessel_analysis( studyDir, fcmrNum, usePolyCorr, ro
 % - script uses file names for titles in figures.
 %
 % See also:
-%   Wrapper script: C:\Users\tr17\Documents\CODE_Projects\fetal_cmr_4dflow\wip\fcmr_4dflow_vesselanalysis_wrapper.m
+%   Wrapper script: ...\CODE_Projects\fetal_cmr_4dflow\wip\fcmr_4dflow_vesselanalysis_wrapper.m
 
 % Tom Roberts (t.roberts@kcl.ac.uk)
 
