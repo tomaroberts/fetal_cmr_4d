@@ -95,6 +95,7 @@ for iStk = 1:nStack
     nZ   = size( R(iStk).img, 3 );
     nT   = size( R(iStk).img, 4 );
     
+    % TODO: automate apodization based on median + SD of signal differences
     [ R(iStk).img, P(iStk).Sweep ] = sweep_window_filter( R(iStk).img, P(iStk).Sweep, apodLength );
     
     % Update Nifti - 4-D to 3-D
@@ -117,6 +118,8 @@ end
 
 
 %% Resample Mask to Apodized Stack Dimensions
+% TODO: think nifti headers may be wrong - update to match apodized image
+% volumes above
 
 for iStk = 1:nStack
 

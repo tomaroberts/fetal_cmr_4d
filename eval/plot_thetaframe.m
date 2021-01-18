@@ -1,4 +1,4 @@
-function plot_thetaframe( S, isSwpAcq )
+function plot_thetaframe( S, acqType )
 
 %% PLOT_THETAFRAME
 %
@@ -14,7 +14,7 @@ function plot_thetaframe( S, isSwpAcq )
 %% Init
 
 if nargin < 2
-    isSwpAcq = false;
+    acqType = false;
 end
 nStack   = numel( S );
  
@@ -25,9 +25,19 @@ for iStk = 1:nStack
 
     thetaFrame = []; nFrame = []; nLoc = [];
     
-    thetaFrame = cell2mat( S(iStk).thetaFrame );
-    nFrame     = numel( cell2mat( S(iStk).thetaFrame ) );
-    nLoc       = S(iStk).nLoc;
+    if strcmp(acqType, 'swp')
+        thetaFrame = S(iStk).thetaFrameSwpLoc;
+        nFrame     = numel( S(iStk).thetaFrameSwpLoc );
+        nLoc       = S(iStk).nLoc;
+    elseif strcmp(acqType, 'sim')
+        thetaFrame = S(iStk).thetaFrame;
+        nFrame     = numel( S(iStk).thetaFrame );
+        nLoc       = S(iStk).nLoc;
+    else
+        thetaFrame = cell2mat( S(iStk).thetaFrame );
+        nFrame     = numel( cell2mat( S(iStk).thetaFrame ) );
+        nLoc       = S(iStk).nLoc;
+    end
     
     figure('units','normalized','outerposition',[0 0 1 1]); 
     hold on;
@@ -43,7 +53,7 @@ for iStk = 1:nStack
     ylabel('Cardiac Phase (theta)');
     xlabel('Frame Index');
     
-    if ~isSwpAcq   
+    if ~acqType   
         legend('Frame','First Frame of Slice','Location','NorthWest');
     else
         legend('Frame','First Frame of Bin','Location','NorthWest');

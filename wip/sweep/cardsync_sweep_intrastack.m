@@ -65,6 +65,10 @@ for iStk = 1:nStack
     
 end
 
+% Number of Bins
+% - TODO: add check - these must be integers
+nBins = ( (nSW.*SWs) ./ SWs ) + ( (nSL - (nSW.*SWs)) ./ SWs );
+
 
 %% tRR of All Sweep Windows
 
@@ -78,9 +82,11 @@ for iStk = 1:nStack
     yRange( iStk, yCtr:yCtr+S(iStk).nLoc-1 ) = cell2mat([S(iStk).tRR]);
     yCtr = yCtr + S(iStk).nLoc;
 
-    plot( xRange, yRange, 'o' );
+    hPlot = plot( xRange, yRange, 'o' );
 end
-legend(S.desc);
+
+for iStk = 1:nStack; hPlot(iStk).DisplayName = S(iStk).desc; end
+legend(hPlot);
 title('tRR');
 xlabel('Sweep Window Index');
 ylabel('tRR (seconds)');
@@ -174,19 +180,15 @@ end
 % Sweep Window Stride
 
 % Reminder:
-% No. Sweep Bins = No. Sweep Locations / No. Sweep Windows + (2 * Sweep Win Stride)
+% No. Sweep Bins dependent on Stride and Sweep Window size
 % e.g.:
 % nSL (no. loca) = 1088
 % nSW (no. win)  = 32
 % SWs (stride)   = 32
 %                = 34 bins (due to stride being one-third of width)
 
-for iStk = 1:nStack
 
-    nBins(iStk) = nSW(iStk) + 2; 
-    % TODO: 
-    % - not sure this is will work for all strides
-    % - Might be problematic if Sweep Window Width not divisible by Stride    
+for iStk = 1:nStack   
     
     % Bin Frame Times (set frame 1 @ t = 0)
     tF = [];
