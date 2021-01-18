@@ -1,24 +1,21 @@
 #### path/variable admin
-fcmrNum = 372
+fcmrNum = 375
 foldExt = ''
 pvStateExt = ''
 velDir = '\\vel_vol_4d'
-# velDir = '\\vel_vol_trans_4d'
 
 # pvFold = '\\paraview' + '\\'
-# pvFold = '\\paraview_polyCorr' + '\\'
-pvFold = '\\paraview_polyCorr_blood_pool_cleaned' + '\\'
+pvFold = '\\paraview_polyCorr' + '\\'
+# pvFold = '\\paraview_polyCorr_blood_pool_cleaned' + '\\'
 # pvFold = '\\paraview_polyCorr_aorta_v2_LV_RV_LOT_ROT_LA_RA_IVC_SVC_PA_DA_v2' + '\\'
 
-# fcmrDir = 'I:\\fcmr_4d_clinical_recons\\c_fcmr'
-# fcmrDir = 'I:\\fcmr_4d_chloe_recons\\c_fcmr'
-# fcmrDir = 'E:\\Users\\tr17\\Documents\\Projects\\PC_Fetal_CMR\\Data\\Chloe_Recons\\fcmr'
+fcmrDir = 'I:\\King\'s College London\\Perinatal CMR - Documents\\General\\Data\\fcmr_4d_clinical\\c_fcmr'
 # fcmrDir = 'E:\\Users\\tr17\\Documents\\Projects\\PC_Fetal_CMR\\Data\\4D_Flow_Paper\\fcmr'
-fcmrDir = 'C:\\Users\\tr17\\Documents\\Projects\\PC_Fetal_CMR\\Data\\Sweep\\c_fcmr'
-path = fcmrDir + str(fcmrNum) + '_m2d' + foldExt + velDir + pvFold
 
-pvStateFilename = 'fcmr' + str(fcmrNum) + '_' + pvStateExt + 'paraview.pvsm'
-# pvStateFilename = 'c_fcmr' + str(fcmrNum) + '_' + pvStateExt + 'paraview.pvsm'
+path = fcmrDir + str(fcmrNum) + '' + foldExt + velDir + pvFold
+
+# pvStateFilename = 'fcmr' + str(fcmrNum) + '_' + pvStateExt + 'paraview.pvsm'
+pvStateFilename = 'c_fcmr' + str(fcmrNum) + '_' + pvStateExt + 'paraview.pvsm'
 
 
 filenameCine = 'cine_vol_masked_t'
@@ -293,4 +290,4 @@ renderView1.CameraParallelScale = 55
 # SaveScreenshot(path + '/test.png', renderView1, ImageResolution=[955, 778])
 
 # save state
-SaveState(fcmrDir + str(fcmrNum) + '_m2d' + foldExt + velDir + pvFold + pvStateFilename)
+SaveState(fcmrDir + str(fcmrNum) + foldExt + velDir + pvFold + pvStateFilename)
