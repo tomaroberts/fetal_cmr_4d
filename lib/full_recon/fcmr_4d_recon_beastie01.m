@@ -29,7 +29,14 @@ function fcmr_4d_recon_beastie01( varargin )
 default.scanDate    		= '';  % e.g.: '2011_07_22'
 default.patID			    = '';  % e.g.: 'SA_385591'
 default.reconDir            = '';  % must end .../<str>%i%i%i - i.e.: .../fcmr202
+default.rawDataDir		    = '';  % e.g.: '/pnraw01/raw-ingenia/'
+default.seriesNos           = [];
+default.dlgChoice           = [];
 default.targetVol           = 1;   % TODO: implement option to specify target volume
+
+
+
+
 
 %% Parse Input
 
@@ -50,12 +57,23 @@ add_param_fn(   p, 'patID', default.patID, ...
 add_param_fn(   p, 'reconDir', default.reconDir, ...
     @(x) validateattributes( x, {'char'}, {'vector'}, mfilename) );
 
+add_param_fn(   p, 'rawDataDir', default.rawDataDir, ...
+    @(x) validateattributes( x, {'char'}, {'vector'}, mfilename) );
+
+add_param_fn(   p, 'seriesNos', default.seriesNos, ...
+    @(x) validateattributes( x, {'numeric'}, {'positive', 'vector'}, mfilename) );
+
+add_param_fn( p, 'dlgChoice', default.dlgChoice, ...
+        @(x) validateattributes( x, {'numeric'}, {'positive','scalar'}, mfilename ) );
+
 parse( p, varargin{:} );
 
 scanDate		    = p.Results.scanDate;
 patID  				= p.Results.patID;
 reconDir       		= p.Results.reconDir;
-
+rawDataDir          = p.Results.rawDataDir;
+seriesNos           = p.Results.seriesNos;
+dlgChoice           = p.Results.dlgChoice;
 
 
 %% Directories / Dependencies
@@ -93,13 +111,17 @@ choiceList = {'Part 0) k-t Reconstruction', ...
               'Run MITK     (for drawing masks)', ...
              };
 
-[dlgChoice,~] = listdlg( ...
-    'PromptString', 'What would you like to run?:', ...
-    'SelectionMode', 'Single', ...
-    'Name', 'FCMR 4D Reconstruction Options', ...
-    'ListSize', [500,150], ...
-    'ListString', choiceList );
+if isempty(dlgChoice)
+    
+    [dlgChoice,~] = listdlg( ...
+        'PromptString', 'What would you like to run?:', ...
+        'SelectionMode', 'Single', ...
+        'Name', 'FCMR 4D Reconstruction Options', ...
+        'ListSize', [500,150], ...
+        'ListString', choiceList );
 
+end
+    
 if     dlgChoice == 1
     reconChoice = 'recon_kt';
     fprintf('Part 0) Running k-t reconstruction ...\n');    
@@ -122,18 +144,22 @@ elseif dlgChoice == 7
     return;
 elseif isempty(dlgChoice)
     fprintf( 'Exiting ...\n' );
-	return;
+    return;
 end
 
 
 %% Directories
 
 % Ingenia raw folder
-ingeniaRawDirPath 	     = '/pnraw01/raw-ingenia';
-ingeniaArchiveRawDirPath = '/isi01/archive-rawdata/archive-ingenia';
+if isempty(rawDataDir)
+    ingeniaRawDirPath 	     = '/pnraw01/raw-ingenia';
+    ingeniaArchiveRawDirPath = '/isi01/archive-rawdata/archive-ingenia';
+else
+    ingeniaRawDirPath        = rawDataDir;
+end
 
 % reconDir
-studyDir = '/scratch/cmo19/Data'; %TODO allow different user
+studyDir = '/scratch/cmo19/Data'; %TODO generalise to different users
 
 if isempty(reconDir)
     reconDir = uigetdir( studyDir, 'Select fcmr folder:' ); % e.g.: reconDir = '/scratch/cmo19/Data/fcmr202';
@@ -202,29 +228,33 @@ if strcmp( reconChoice, 'recon_kt' ) || strcmp( reconChoice, 'recon_full' )
     % Auto-detect seriesNos
     cd( rawDataDirPath );
     
-    for ii = 1:numel(rawDataFileNames)
-
-        % parse underscores
-        usLoc = strfind( rawDataFileNames{ii}, '_' );
-        us3 = usLoc(3);
-        us4 = usLoc(4);
-        seriesNos(ii) = str2double( rawDataFileNames{ii}( us3+1:us4-1 ) );
-
-    end
-
-	% Stacks confirmation
-	prompt = sprintf(['Which stacks do you want to reconstruct?\n' ...
-		'Auto-detected: %s \n' ... 
-		'Enter space-separated numbers: \n'], ...
-        num2str(seriesNos) );
-	dlgtitle = 'Input';
-    definput = {num2str(seriesNos)};
-	seriesNos = inputdlg( prompt, dlgtitle, [1 60], definput );
-	seriesNos = sscanf(char(seriesNos),'%i')';
-
     if isempty(seriesNos)
-        fprintf( 'Exiting ...\n' );
-        return;
+    
+        for ii = 1:numel(rawDataFileNames)
+
+            % parse underscores
+            usLoc = strfind( rawDataFileNames{ii}, '_' );
+            us3 = usLoc(3);
+            us4 = usLoc(4);
+            seriesNos(ii) = str2double( rawDataFileNames{ii}( us3+1:us4-1 ) );
+
+        end
+
+        % Stacks confirmation
+        prompt = sprintf(['Which stacks do you want to reconstruct?\n' ...
+            'Auto-detected: %s \n' ... 
+            'Enter space-separated numbers: \n'], ...
+            num2str(seriesNos) );
+        dlgtitle = 'Input';
+        definput = {num2str(seriesNos)};
+        seriesNos = inputdlg( prompt, dlgtitle, [1 60], definput );
+        seriesNos = sscanf(char(seriesNos),'%i')';
+
+        if isempty(seriesNos)
+            fprintf( 'Exiting ...\n' );
+            return;
+        end
+        
     end
     
 	% %% Debug - check pnraw data found
@@ -487,8 +517,10 @@ if strcmp( reconChoice, 'recon_vel_vol' ) || ...
     fprintf('Creating FCMR 4D flow dicoms ...\n');
     
     % Remove existing dcm_4d folder created in Part 1
-    rmdir( fullfile( reconDir, 'dcm_4d' ), 's' );
-    
+    if isdir('dcm_4d')
+        rmdir( fullfile( reconDir, 'dcm_4d' ), 's' );
+    end
+        
     exportPathCmd = 'export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/home/cmo19/miniconda/bin";'; %nb: Linux PATH not known by Matlab
     pythonCmd     = ['/home/cmo19/miniconda/bin/python3 /home/cmo19/MATLAB/fetal_cmr_4d-master/lib/dicom/fcmr_4d_make_dicom.py -r ' reconDir '/ -f ' num2str(fcmrNo)];
     cmdStr        = strcat(exportPathCmd, pythonCmd);

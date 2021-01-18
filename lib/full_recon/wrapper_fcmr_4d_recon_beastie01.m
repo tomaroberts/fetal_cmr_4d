@@ -8,13 +8,16 @@ cd(reconDir);
 fcmr_4d_recon_beastie01('scanDate',scanDate,'patID',patID,'reconDir',reconDir);
 
 
-%% c_fcmr273
+%% c_fcmr375
 
-scanDate = '2019_08_23';
-patID    = 'RI_128958';
-reconDir = '/scratch/cmo19/Data/c_fcmr273';
+scanDate   = '2020_12_11';
+patID      = 'EL_421313';
+reconDir   = '/scratch/cmo19/Data/c_fcmr375';
+dlgChoice  = 4;
+rawDataDir = '/pnraw01/raw-ingenia'; % or archive
+seriesNos  = [20 21 22 23 24];
 
-fcmr_4d_recon_beastie01('scanDate',scanDate,'patID',patID,'reconDir',reconDir);
+fcmr_4d_recon_beastie01('scanDate',scanDate, 'patID',patID, 'reconDir',reconDir, 'dlgChoice', dlgChoice);
 
 
 
