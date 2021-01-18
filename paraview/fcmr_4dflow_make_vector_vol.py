@@ -1,6 +1,6 @@
 #### path/variable admin
-fcmrNum = 214
-foldExt = '_hrh_fullRecon'
+fcmrNum = 372
+foldExt = ''
 pvStateExt = ''
 velDir = '\\vel_vol_4d'
 # velDir = '\\vel_vol_trans_4d'
@@ -13,8 +13,9 @@ pvFold = '\\paraview_polyCorr_blood_pool_cleaned' + '\\'
 # fcmrDir = 'I:\\fcmr_4d_clinical_recons\\c_fcmr'
 # fcmrDir = 'I:\\fcmr_4d_chloe_recons\\c_fcmr'
 # fcmrDir = 'E:\\Users\\tr17\\Documents\\Projects\\PC_Fetal_CMR\\Data\\Chloe_Recons\\fcmr'
-fcmrDir = 'E:\\Users\\tr17\\Documents\\Projects\\PC_Fetal_CMR\\Data\\4D_Flow_Paper\\fcmr'
-path = fcmrDir + str(fcmrNum) + '' + foldExt + velDir + pvFold
+# fcmrDir = 'E:\\Users\\tr17\\Documents\\Projects\\PC_Fetal_CMR\\Data\\4D_Flow_Paper\\fcmr'
+fcmrDir = 'C:\\Users\\tr17\\Documents\\Projects\\PC_Fetal_CMR\\Data\\Sweep\\c_fcmr'
+path = fcmrDir + str(fcmrNum) + '_m2d' + foldExt + velDir + pvFold
 
 pvStateFilename = 'fcmr' + str(fcmrNum) + '_' + pvStateExt + 'paraview.pvsm'
 # pvStateFilename = 'c_fcmr' + str(fcmrNum) + '_' + pvStateExt + 'paraview.pvsm'
@@ -292,4 +293,4 @@ renderView1.CameraParallelScale = 55
 # SaveScreenshot(path + '/test.png', renderView1, ImageResolution=[955, 778])
 
 # save state
-SaveState(fcmrDir + str(fcmrNum) + foldExt + velDir + pvFold + pvStateFilename)
+SaveState(fcmrDir + str(fcmrNum) + '_m2d' + foldExt + velDir + pvFold + pvStateFilename)
