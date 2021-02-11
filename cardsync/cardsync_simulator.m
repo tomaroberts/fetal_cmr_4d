@@ -85,7 +85,8 @@ switch simulationMethod
         D = nan(size(x));
         D(1:nSamplesPerSlices*SWP(iStk).numSwpWin) = repelem( SWP(iStk).tRR, nSamplesPerSlices );
         
-        figure; plot( x,B,'-k.', x,C,'-b', x,D,'-r' );
+        figure; plot( x,B,'-k.', x,C,'-b', x,D,'-r', 'LineWidth', 1.5 );
+%         figure; plot( x,C,'-b', x,D,'-r', 'LineWidth', 2 );
         AX = axis; axis([AX(1) AX(2) 0 AX(4)*1.25]);
         xlabel('Frame Number'); ylabel('Heart Rate [seconds]');
         
