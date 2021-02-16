@@ -20,7 +20,7 @@ import argparse
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Fetal CMR 4D dicom creator')
     parser.add_argument('-r','--recondir', required='True', type=dir_path, metavar='recondir', help='Path to reconDir (e.g.: /path/to/fcmr214)')
-    parser.add_argument('-f','--fcmrnum', required='True', type=int, metavar='fcmrnum', help='3-digit fcmr number (e.g.: 214)')
+    parser.add_argument('-pn','--patientname', required='True', metavar='patientname', help='PatientName in dicom header (e.g.: FCMR_4D_Patient)')
     parser.add_argument('--venc', type=int, metavar='venc', default=159, help='VENC [cm/s] - default = 159 cm/s')
     parser.add_argument('--studydate', type=int, metavar='studydate', default=2000101, help='StudyDate in dicom header (default = 2000101 = 01/01/2000)')
     parser.add_argument('--studytime', type=float, metavar='studytime', default=100000, help='StudyTime in dicom header (default = 100000 = 10am)')
@@ -41,7 +41,7 @@ def dir_path(path):
 # Run
 args        = parse_arguments()
 reconDir    = args.recondir
-fcmrNum     = args.fcmrnum
+patientName = args.patientname
 venc        = args.venc
 studyDate   = args.studydate
 studyTime   = args.studytime
@@ -56,7 +56,7 @@ if seriesTime == studyTime:
 
 # display useful parameters
 print('Converting data in directory:', reconDir)
-print('FCMR Number:', fcmrNum)
+print('Patient Name:', patientName)
 print('VENC [cm/s] =', venc)
 print('Study Date =', studyDate)
 print('Study Time =', studyTime)
@@ -67,7 +67,6 @@ print('Series Time =', seriesTime)
 
 # Dicom admin
 fcmrDir     = reconDir
-patientName = 'FCMR_4D_fcmr' + str(fcmrNum)
 dcmFolder   = r'dcm_4d'
 
 
@@ -910,7 +909,7 @@ if recon_vel == 1:
 
 ### Zip Final Dicoms
 import shutil
-zipFilePath = os.path.join( fcmrDir, r'fcmr' + str(fcmrNum) + '_dcm_4d' )
+zipFilePath = os.path.join( fcmrDir, patientName + '_dcm_4d' )
 shutil.make_archive(zipFilePath, 'zip', fcmrDir + dcmFolder)
 print('Zip file saved ...')
 print(zipFilePath + '.zip')
