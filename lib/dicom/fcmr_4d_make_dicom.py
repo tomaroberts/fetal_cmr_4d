@@ -179,12 +179,13 @@ dimF = cineVol_nii.header['pixdim'][4]
 
 print("pixdim [mm, mm, mm, seconds]:", [dimX, dimY, dimZ, dimF])
 
-c   = np.reshape(cineVol_img, [nX, nY, nZ*nF])
+c = np.flip( np.reshape(cineVol_img, [nX, nY, nZ*nF]), axis=2) # axis=2 = SI flip
+
 if recon_vel == 1:
-    v0  = np.reshape(velVol0_img, [nX, nY, nZ*nF])
-    v1  = np.reshape(velVol1_img, [nX, nY, nZ*nF])
-    v2  = np.reshape(velVol2_img, [nX, nY, nZ*nF])
-    m   = np.reshape(mask_bp_img, [nX, nY, nZ*nF])
+    v0  = np.flip( np.reshape(velVol0_img, [nX, nY, nZ*nF]), axis=2)
+    v1  = np.flip( np.reshape(velVol1_img, [nX, nY, nZ*nF]), axis=2)
+    v2  = np.flip( np.reshape(velVol2_img, [nX, nY, nZ*nF]), axis=2)
+    m   = np.flip( np.reshape(mask_bp_img, [nX, nY, nZ*nF]), axis=2)
 
     # Apply blood pool mask
     v0 = numpy.multiply(v0,m)
