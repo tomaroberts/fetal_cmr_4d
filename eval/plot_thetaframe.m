@@ -29,6 +29,19 @@ for iStk = 1:nStack
         thetaFrame = S(iStk).thetaFrameSwpLoc;
         nFrame     = numel( S(iStk).thetaFrameSwpLoc );
         nLoc       = S(iStk).nLoc;
+    elseif strcmp(acqType, 'swp_intra')
+        thetaFrame = cell2mat( S(iStk).thetaFrameSwpBins );
+        thetaFrame = thetaFrame(:);
+        nFrame     = numel( thetaFrame );
+        nLoc       = numel( S(iStk).thetaFrameSwpBins );
+    elseif strcmp(acqType, 'swp_inter')
+        thetaFrame = S(iStk).thetaFrameSwpLoc;
+        nFrame     = numel( S(iStk).thetaFrameSwpLoc );
+        nLoc       = numel( S(iStk).thetaFrameSwpBins );
+    elseif strcmp(acqType, 'swp_resliced')
+        thetaFrame = S(iStk).thetaFrameSwpLocResliced;
+        nFrame     = numel( S(iStk).thetaFrameSwpLocResliced );
+        nLoc       = S(iStk).nLoc;        
     elseif strcmp(acqType, 'sim')
         thetaFrame = S(iStk).thetaFrame;
         nFrame     = numel( S(iStk).thetaFrame );
@@ -39,7 +52,7 @@ for iStk = 1:nStack
         nLoc       = S(iStk).nLoc;
     end
     
-    figure('units','normalized','outerposition',[0 0 1 1]); 
+    figure('units','normalized','outerposition',[0.1 0.1 0.8 0.8]); 
     hold on;
     
     plot( thetaFrame, 'ok', 'MarkerFaceColor','k' );
