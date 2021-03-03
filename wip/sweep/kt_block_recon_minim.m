@@ -111,7 +111,7 @@ end
 
 % Shift thetaFrame
 KTBtemp = sortrows( KTB(:,:,ssd_pert_min_idx), 1 ); % resort by frame order
-KTBtemp = sortrows( KTB(:,:,5), 1 ); % resort by frame order
+% KTBtemp = sortrows( KTB(:,:,5), 1 ); % resort by frame order
 ktBlockthetaFramePerturbed = KTBtemp(:,3);
 
 
