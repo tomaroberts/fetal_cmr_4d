@@ -68,7 +68,8 @@ mkdir(pngfigDir);
 mkdir(matfigDir);
 
 nStack      = numel( S );
-nStack = 1;
+% nStack = 1;
+
 
 %% Load Data
 
@@ -82,9 +83,11 @@ for iStk = 1:nStack
     R(iStk) = load_untouch_nii( fullfile( dataDir, [ S(iStk).desc '_rlt_swp3d_ab.nii.gz' ] ) );
     
     % Load Masks
-    N = load_untouch_nii( fullfile( maskDir, [ S(iStk).desc '_mask_heart_swp3d.nii.gz' ] ) );
-    M(iStk).img = single( N.img );
-
+%     N = load_untouch_nii( fullfile( maskDir, [ S(iStk).desc '_mask_heart_swp3d.nii.gz' ] ) );
+%     M(iStk).img = single( N.img );
+    N = load_untouch_nii( fullfile( maskDir, [ S(iStk).desc '_mask_heart.nii.gz' ] ) );
+    M(iStk).img = single( reshape( permute( repmat( N.img,[1,1,1,P(iStk).Sweep.swpWinFullWidth] ), [1,2,4,3] ), [size(N.img,1),size(N.img,2),P(iStk).Sweep.numSwpLoca] ) );
+    
     % Load Cine Vol
     X(iStk) = load_untouch_nii( fullfile( dataDir, [ 'cine_vol_trans2swp_' S(iStk).desc '.nii.gz' ] ) );
     X(iStk).img = single( X(iStk).img );
@@ -184,7 +187,7 @@ end
 if isVerbose    
     iStk1 = 1;
     
-    locStart  = 513;
+    locStart  = 193;
     locRange  = locStart:locStart+ktBlockSize-1;
     
     implay_RR( [R(iStk1).img(:,:,locRange).*B(iStk1).img(:,:,locRange) ...
@@ -198,6 +201,7 @@ end
 
 % Loop over stacks
 for iStk = 1:nStack
+% for iStk = 4
     
     disp( ['Performing Stack-Cine Vol synchronisation on stack no.: ' num2str(iStk) ] );
 
@@ -207,8 +211,8 @@ for iStk = 1:nStack
     thetaFrame         = cell2mat( S(iStk).thetaFrame );
     tRR                = repelem( cell2mat( S(iStk).tRR ), P(iStk).Sweep.swpWinFullWidth );
     
-%     for iKT = 1:nBlocks(iStk)
-    for iKT = 3
+    for iKT = 1:nBlocks(iStk)
+%     for iKT = 3
         
         %% Compare k-t block with corresponding cine_vol
         % ktBlockStart  = 513;
@@ -275,8 +279,8 @@ for iStk = 1:nStack
             
             % k-t block Signal
             for iF = 1:numel( ktBlockRange )
-%                 Sig_R(iF) = mean( nonzeros( R.img(:,:,ktBlockRange(iF)).*B.img(:,:,ktBlockRange(iF)).*M.img(:,:,ktBlockRange(iF)) ) );
-                Sig_R(iF) = mean( nonzeros( RBP.img(:,:,iF) ) );
+                Sig_R(iF) = mean( nonzeros( Rblock.img(:,:,iF) ) );
+%                 Sig_R(iF) = mean( nonzeros( RBP.img(:,:,iF) ) );
             end
             
             % Cine Vol Signal
@@ -297,8 +301,8 @@ for iStk = 1:nStack
             kt_block_recon_minim;
             close all;
             
-            thetaFrameModelled( ktBlockRange ) = ktBlockthetaFramePerturbed;
-            
+            thetaFrameModelled( ktBlockRange ) = ktBlockthetaFrameShifted; % circ shifted only
+%             thetaFrameModelled( ktBlockRange ) = ktBlockthetaFramePerturbed; % circshift + perturbed
             
             
         end
