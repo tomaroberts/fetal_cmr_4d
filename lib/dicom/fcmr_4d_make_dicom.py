@@ -525,11 +525,48 @@ def dcm_initialise():
     real_world_value_mapping1 = Dataset()
     real_world_value_mapping1.RealWorldValueIntercept = 0.0
     real_world_value_mapping1.RealWorldValueSlope = 1.0 # Important this is non-zero!
+    # suggested by Ben from Arterys
+    real_world_value_mapping1.RescaleIntercept = -1 * venc
+    real_world_value_mapping1.RescaleSlope = 1.0
+    real_world_value_mapping1.RescaleType = 'cm/sec'
+    # end Ben
     real_world_value_mapping_sequence.append(real_world_value_mapping1)
 
     ds.PresentationLUTShape = 'IDENTITY'
 
     return file_meta, ds
+
+
+### Make Real World Value Mapping Sequence
+
+def dcm_make_real_world_sequence(ds, isVelVol):
+    
+    ### Real World Value Mapping Sequence determines appearance/contrast of image data in dicom viewer
+    #
+    # INPUT:
+    # - ds: Existing Dicom DataSet
+    # - isVelVol: adds tags for velocity rescaling
+    #
+
+    # Real World Value Mapping Sequence
+    real_world_value_mapping_sequence = Sequence()
+    ds.RealWorldValueMappingSequence = real_world_value_mapping_sequence
+
+    # Real World Value Mapping Sequence: Real World Value Mapping 1
+    real_world_value_mapping1 = Dataset()
+    real_world_value_mapping1.RealWorldValueIntercept = 0.0
+    real_world_value_mapping1.RealWorldValueSlope = 1.0 # Important this is non-zero!
+    
+    #  Ben @ Arterys - velocity volumes
+    if isVelVol is True:
+        real_world_value_mapping1.RescaleIntercept = -1 * venc
+        real_world_value_mapping1.RescaleSlope = 1.0
+        real_world_value_mapping1.RescaleType = 'cm/sec'
+        # end Ben
+    
+    real_world_value_mapping_sequence.append(real_world_value_mapping1)
+
+    return ds
 
 
 ### Make Reference Image Sequence
@@ -748,6 +785,11 @@ ds.PhaseContrast = 'YES'
 # ds.VelocityEncodingDirection = [0.0, 0.0, 0.0] # TODO: Not sure if required.
 ds.VelocityEncodingMinimumValue = 0.0 # TODO: Not sure if required.
 
+# Ben @ Arterys - Magnitude Rescale values
+dcm_make_real_world_sequence(ds, False)
+# end Ben
+
+
 # Update Instance-wise Attributes
 for iImage in range(numInstances):
     
@@ -843,6 +885,7 @@ if recon_vel == 1:
             ds.WindowWidth = str(v0rWindowWidth)
             ds.WindowCenter = str(v0rWindowCenter)
             ds.PCVelocity = [venc, 0, 0]
+            ds.VelocityEncodingDirection = [1, 0, 0]
             # ds.ReconstructionNumberMR = 3 # TODO: Not sure if required.
         elif iVelVol==1:
             ds.ProtocolName = 'FCMR 4D FLOW V1'
@@ -853,6 +896,7 @@ if recon_vel == 1:
             ds.WindowWidth = str(v1rWindowWidth)
             ds.WindowCenter = str(v1rWindowCenter)
             ds.PCVelocity = [0, venc, 0]
+            ds.VelocityEncodingDirection = [0, 1, 0]
             # ds.ReconstructionNumberMR = 4 # TODO: Not sure if required.
         elif iVelVol==2:
             ds.ProtocolName = 'FCMR 4D FLOW V2'
@@ -863,6 +907,7 @@ if recon_vel == 1:
             ds.WindowWidth = str(v2rWindowWidth)
             ds.WindowCenter = str(v2rWindowCenter)
             ds.PCVelocity = [0, 0, venc]
+            ds.VelocityEncodingDirection = [0, 0, 1]
             # ds.ReconstructionNumberMR = 5 # TODO: Not sure if required.
 
         # Update Instance-wise Attributes
