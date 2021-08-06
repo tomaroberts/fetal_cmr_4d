@@ -179,13 +179,52 @@ dimF = cineVol_nii.header['pixdim'][4]
 
 print("pixdim [mm, mm, mm, seconds]:", [dimX, dimY, dimZ, dimF])
 
-c = np.flip( np.reshape(cineVol_img, [nX, nY, nZ*nF]), axis=2) # axis=2 = SI flip
+# c = np.flip( np.reshape(cineVol_img, [nX, nY, nZ*nF]), axis=2) # axis=2 = SI flip
+c = np.reshape(cineVol_img, [nX, nY, nZ*nF])
+
+# c = np.reshape(cineVol_img, [nX, nY, nZ*nF])
+
+# # TAR - 21/07/2021 - porting orientation from nifti to DICOM
+# print("cineVol affine:")
+# print(cineVol_nii.affine)
+# M = cineVol_nii.affine[:3, :3]
+# abc = cineVol_nii.affine[:3, 3]
+# print(M)
+# print(abc)
+
+# delr = 1
+# delc = 1
+# F11delr = cineVol_nii.affine[0, 0]*delr
+# F21delr = cineVol_nii.affine[1, 0]*delr
+# F31delr = cineVol_nii.affine[2, 0]*delr
+# F12delc = cineVol_nii.affine[0, 1]*delc
+# F22delc = cineVol_nii.affine[1, 1]*delc
+# F32delc = cineVol_nii.affine[2, 1]*delc
+
+# ImOriPat = [F11delr, F21delr, F31delr, F12delc, F22delc, F32delc]
+# print(ImOriPat)
+
+# T1 = cineVol_nii.affine[0, 3]
+# T2 = cineVol_nii.affine[1, 3]
+# T3 = cineVol_nii.affine[2, 3]
+# ImPosPat = [T1, T2, T3]
+# print(ImPosPat)
+
+# exit()
+# # end TAR
 
 if recon_vel == 1:
-    v0  = np.flip( np.reshape(velVol0_img, [nX, nY, nZ*nF]), axis=2)
-    v1  = np.flip( np.reshape(velVol1_img, [nX, nY, nZ*nF]), axis=2)
-    v2  = np.flip( np.reshape(velVol2_img, [nX, nY, nZ*nF]), axis=2)
-    m   = np.flip( np.reshape(mask_bp_img, [nX, nY, nZ*nF]), axis=2)
+    
+    # # SI flip:
+    # v0  = np.flip( np.reshape(velVol0_img, [nX, nY, nZ*nF]), axis=2)
+    # v1  = np.flip( np.reshape(velVol1_img, [nX, nY, nZ*nF]), axis=2)
+    # v2  = np.flip( np.reshape(velVol2_img, [nX, nY, nZ*nF]), axis=2)
+    # m   = np.flip( np.reshape(mask_bp_img, [nX, nY, nZ*nF]), axis=2)
+
+    v0  = np.reshape(velVol0_img, [nX, nY, nZ*nF])
+    v1  = np.reshape(velVol1_img, [nX, nY, nZ*nF])
+    v2  = np.reshape(velVol2_img, [nX, nY, nZ*nF])
+    m   = np.reshape(mask_bp_img, [nX, nY, nZ*nF])
 
     # Apply blood pool mask
     v0 = numpy.multiply(v0,m)
@@ -607,6 +646,57 @@ def dcm_make_ref_image_sequence(ds, ref_im1, ref_im2, ref_im3):
     return ds
 
 
+### Make Reference Image Sequence
+
+def dcm_make_geometry_tags(ds, nii, sliceNumber):
+    
+    ### Creates Geometry tags from nifti affine
+    #
+    # INPUT:
+    # - ds: Existing Dicom DataSet
+    # - nii: nifti containing affine
+    # - sliceNumber: slice number (counting from 1)
+    #
+
+    def fnT1N(A,N):
+        # Subfn: calculate T1N vector
+        # A = affine matrix [4x4]
+        # N = slice number (counting from 1)
+        T1N = A.dot([[0], [0], [N-1], [1]])
+        return T1N
+
+    # data parameters & pixel dimensions
+    nX  = nii.header['dim'][1]
+    nY  = nii.header['dim'][2]
+    nSl = nii.header['dim'][3]
+    
+    dimX = nii.header['pixdim'][1]
+    dimY = nii.header['pixdim'][2]
+    dimZ = nii.header['pixdim'][3]
+    dimF = nii.header['pixdim'][4]
+
+    # direction cosines & position parameters
+    # nb: -1 for dir cosines matches cine_vol nifti in ITK-Snap
+    A = nii.affine
+    dircosX = -1 * A[:3,0] / dimX
+    dircosY = -1 * A[:3,1] / dimY
+    T1N = fnT1N(A, sliceNumber)
+
+    # print('A =', A)
+    # print('dircosX =', dircosX)
+    # print('dircosX =', dircosY)
+    # print('dircosXY = ', [dircosX[0], dircosX[1], dircosX[2], dircosY[0], dircosY[1], dircosY[2]] )
+    # print('T1N = ', T1N)
+
+    # Dicom Tags
+    ds.SpacingBetweenSlices = dimZ
+    ds.ImagePositionPatient = [T1N[0],T1N[1],T1N[2]]
+    # ds.ImageOrientationPatient = [dircosX[0], dircosX[1], dircosX[2], dircosY[0], dircosY[1], dircosY[2]]
+    ds.ImageOrientationPatient = [dircosY[0], dircosY[1], dircosY[2], dircosX[0], dircosX[1], dircosX[2]] # matches cine_vol nifti in ITK-Snap
+
+    return ds
+
+
 #### Define UIDs for this Study
 
 # UIDs constant across all volumes
@@ -688,6 +778,13 @@ ds.PhaseContrast = 'NO'
 # ds.VelocityEncodingDirection = [0.0, 0.0, 0.0] # TODO: Not sure if required.
 ds.VelocityEncodingMinimumValue = 0.0 # TODO: Not sure if required.
 
+# # TAR TESTING
+# dcm_make_geometry_tags(ds, cineVol_nii, 10)
+# print('Tom DICOM test:')
+# print(ds)
+# exit()
+# # end TAR
+
 # Update Instance-wise Attributes
 for iImage in range(0,numInstances,nF):
     
@@ -710,6 +807,9 @@ for iImage in range(0,numInstances,nF):
     ds.SliceLocation = str(sliceLocation)
     ds.PhaseNumber = int(iFrame)
     ds.SliceNumberMR = int(iSlice)
+
+    # Update Geometry
+    dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
 
     # Create Pixel Data
     ds.PixelData = c[:,:,iImage].tobytes()
@@ -813,6 +913,9 @@ for iImage in range(numInstances):
     ds.PhaseNumber = int(iFrame)
     ds.SliceNumberMR = int(iSlice)
 
+    # Update Geometry
+    dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
+
     # Create Pixel Data
     ds.PixelData = c[:,:,iImage].tobytes()
     ds.file_meta = file_meta
@@ -886,6 +989,8 @@ if recon_vel == 1:
             ds.WindowCenter = str(v0rWindowCenter)
             ds.PCVelocity = [venc, 0, 0]
             ds.VelocityEncodingDirection = [1, 0, 0]
+            ds.PCVelocity = [0, venc, 0]
+            ds.VelocityEncodingDirection = [0, -1, 0]
             # ds.ReconstructionNumberMR = 3 # TODO: Not sure if required.
         elif iVelVol==1:
             ds.ProtocolName = 'FCMR 4D FLOW V1'
@@ -897,6 +1002,8 @@ if recon_vel == 1:
             ds.WindowCenter = str(v1rWindowCenter)
             ds.PCVelocity = [0, venc, 0]
             ds.VelocityEncodingDirection = [0, 1, 0]
+            ds.PCVelocity = [venc, 0, 0]
+            ds.VelocityEncodingDirection = [-1, 0, 0]
             # ds.ReconstructionNumberMR = 4 # TODO: Not sure if required.
         elif iVelVol==2:
             ds.ProtocolName = 'FCMR 4D FLOW V2'
@@ -932,6 +1039,9 @@ if recon_vel == 1:
             ds.SliceLocation = str(sliceLocation)
             ds.PhaseNumber = int(iFrame)
             ds.SliceNumberMR = int(iSlice)
+
+            # Update Geometry
+            dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
 
             # Create Pixel Data
             if iVelVol==0:
