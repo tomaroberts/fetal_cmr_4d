@@ -179,8 +179,8 @@ dimF = cineVol_nii.header['pixdim'][4]
 
 print("pixdim [mm, mm, mm, seconds]:", [dimX, dimY, dimZ, dimF])
 
-# c = np.flip( np.reshape(cineVol_img, [nX, nY, nZ*nF]), axis=2) # axis=2 = SI flip
-c = np.reshape(cineVol_img, [nX, nY, nZ*nF])
+c = np.flip( np.reshape(cineVol_img, [nX, nY, nZ*nF]), axis=2) # axis=2 = SI flip
+# c = np.reshape(cineVol_img, [nX, nY, nZ*nF])
 
 # c = np.reshape(cineVol_img, [nX, nY, nZ*nF])
 
@@ -215,25 +215,45 @@ c = np.reshape(cineVol_img, [nX, nY, nZ*nF])
 
 if recon_vel == 1:
     
-    # # SI flip:
-    # v0  = np.flip( np.reshape(velVol0_img, [nX, nY, nZ*nF]), axis=2)
-    # v1  = np.flip( np.reshape(velVol1_img, [nX, nY, nZ*nF]), axis=2)
-    # v2  = np.flip( np.reshape(velVol2_img, [nX, nY, nZ*nF]), axis=2)
-    # m   = np.flip( np.reshape(mask_bp_img, [nX, nY, nZ*nF]), axis=2)
+    # SI flip:
+    v0  = np.flip( np.reshape(velVol0_img, [nX, nY, nZ*nF]), axis=2)
+    v1  = np.flip( np.reshape(velVol1_img, [nX, nY, nZ*nF]), axis=2)
+    v2  = np.flip( np.reshape(velVol2_img, [nX, nY, nZ*nF]), axis=2)
+    m   = np.flip( np.reshape(mask_bp_img, [nX, nY, nZ*nF]), axis=2)
 
-    v0  = np.reshape(velVol0_img, [nX, nY, nZ*nF])
-    v1  = np.reshape(velVol1_img, [nX, nY, nZ*nF])
-    v2  = np.reshape(velVol2_img, [nX, nY, nZ*nF])
-    m   = np.reshape(mask_bp_img, [nX, nY, nZ*nF])
+    # v0  = np.reshape(velVol0_img, [nX, nY, nZ*nF])
+    # v1  = np.reshape(velVol1_img, [nX, nY, nZ*nF])
+    # v2  = np.reshape(velVol2_img, [nX, nY, nZ*nF])
+    # m   = np.reshape(mask_bp_img, [nX, nY, nZ*nF])
 
     # Apply blood pool mask
     v0 = numpy.multiply(v0,m)
     v1 = numpy.multiply(v1,m)
     v2 = numpy.multiply(v2,m)
 
-    vMag = numpy.sqrt( (v0**2)+(v1**2)+(v2**2) )
-    v0[vMag<0.01] = 0; v1[vMag<0.01] = 0; v2[vMag<0.01] = 0
-    v0[vMag>2] = 0; v1[vMag>2] = 0; v2[vMag>2] = 0
+    # vMag = numpy.sqrt( (v0**2)+(v1**2)+(v2**2) )
+    # v0[vMag<0.01] = 0; v1[vMag<0.01] = 0; v2[vMag<0.01] = 0
+    # v0[vMag>2] = 0; v1[vMag>2] = 0; v2[vMag>2] = 0
+
+    # ##### TEMP - vel encoding testing: set 2 volumes = 0
+    # v0 = numpy.multiply(v0,0)
+    # v1 = numpy.multiply(v1,0)
+    # v2 = v2
+
+    # LPS (default)
+    # v0Enc = [1, 0, 0]; v0Venc = [venc, 0, 0]
+    # v1Enc = [0, 1, 0]; v1Venc = [0, venc, 0]
+    # v2Enc = [0, 0, 1]; v2Venc = [0, 0, venc]
+
+    # # -PLS
+    # v0Enc = [0, -1, 0]; v0Venc = [0, venc, 0]
+    # v1Enc = [1, 0, 0]; v1Venc = [venc, 0, 0]
+    # v2Enc = [0, 0, 1]; v2Venc = [0, 0, venc]
+
+    # -P-LS
+    v0Enc = [0, -1, 0]; v0Venc = [0, venc, 0]
+    v1Enc = [-1, 0, 0]; v1Venc = [venc, 0, 0]
+    v2Enc = [0, 0, 1]; v2Venc = [0, 0, venc]
 
 
 # set background pixels = 0 (-1 in SVRTK)
@@ -646,7 +666,7 @@ def dcm_make_ref_image_sequence(ds, ref_im1, ref_im2, ref_im3):
     return ds
 
 
-### Make Reference Image Sequence
+### Geometry Transfer
 
 def dcm_make_geometry_tags(ds, nii, sliceNumber):
     
@@ -809,7 +829,7 @@ for iImage in range(0,numInstances,nF):
     ds.SliceNumberMR = int(iSlice)
 
     # Update Geometry
-    dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
+    # dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
 
     # Create Pixel Data
     ds.PixelData = c[:,:,iImage].tobytes()
@@ -914,7 +934,7 @@ for iImage in range(numInstances):
     ds.SliceNumberMR = int(iSlice)
 
     # Update Geometry
-    dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
+    # dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
 
     # Create Pixel Data
     ds.PixelData = c[:,:,iImage].tobytes()
@@ -987,10 +1007,10 @@ if recon_vel == 1:
             ds.SeriesNumber = "2003"
             ds.WindowWidth = str(v0rWindowWidth)
             ds.WindowCenter = str(v0rWindowCenter)
-            ds.PCVelocity = [venc, 0, 0]
-            ds.VelocityEncodingDirection = [1, 0, 0]
-            ds.PCVelocity = [0, venc, 0]
-            ds.VelocityEncodingDirection = [0, -1, 0]
+            # ds.VelocityEncodingDirection = [1, 0, 0] # LR
+            # ds.PCVelocity = [venc, 0, 0]
+            ds.VelocityEncodingDirection = v0Enc
+            ds.PCVelocity = v0Venc
             # ds.ReconstructionNumberMR = 3 # TODO: Not sure if required.
         elif iVelVol==1:
             ds.ProtocolName = 'FCMR 4D FLOW V1'
@@ -1000,10 +1020,10 @@ if recon_vel == 1:
             ds.SeriesNumber = "2004"
             ds.WindowWidth = str(v1rWindowWidth)
             ds.WindowCenter = str(v1rWindowCenter)
-            ds.PCVelocity = [0, venc, 0]
-            ds.VelocityEncodingDirection = [0, 1, 0]
-            ds.PCVelocity = [venc, 0, 0]
-            ds.VelocityEncodingDirection = [-1, 0, 0]
+            # ds.VelocityEncodingDirection = [0, 1, 0] # PA
+            # ds.PCVelocity = [0, venc, 0]
+            ds.VelocityEncodingDirection = v1Enc
+            ds.PCVelocity = v1Venc
             # ds.ReconstructionNumberMR = 4 # TODO: Not sure if required.
         elif iVelVol==2:
             ds.ProtocolName = 'FCMR 4D FLOW V2'
@@ -1013,8 +1033,10 @@ if recon_vel == 1:
             ds.SeriesNumber = "2005"
             ds.WindowWidth = str(v2rWindowWidth)
             ds.WindowCenter = str(v2rWindowCenter)
-            ds.PCVelocity = [0, 0, venc]
-            ds.VelocityEncodingDirection = [0, 0, 1]
+            # ds.VelocityEncodingDirection = [0, 0, 1] # SI
+            # ds.PCVelocity = [0, 0, venc]
+            ds.VelocityEncodingDirection = v2Enc
+            ds.PCVelocity = v2Venc
             # ds.ReconstructionNumberMR = 5 # TODO: Not sure if required.
 
         # Update Instance-wise Attributes
@@ -1041,7 +1063,7 @@ if recon_vel == 1:
             ds.SliceNumberMR = int(iSlice)
 
             # Update Geometry
-            dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
+            # dcm_make_geometry_tags(ds, cineVol_nii, iSlice)
 
             # Create Pixel Data
             if iVelVol==0:
